@@ -1,8 +1,0 @@
-{
-  "cost_usd": 0.001,
-  "cases": [
-    {"id": "math", "prompt": "2+2", "expected": "4"},
-    {"id": "greeting", "prompt": "hello", "expected": "Hello!"}
-  ],
-  "responses": {"2+2": "4", "hello": "Hello!"}
-}

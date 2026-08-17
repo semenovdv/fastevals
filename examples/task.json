@@ -1,4 +1,0 @@
-{
-  "prompt": "Review this idea and list its three biggest risks: build an AI evaluation CLI.",
-  "models": ["openai-reasoning", "anthropic-balanced", "local-fast"]
-}
