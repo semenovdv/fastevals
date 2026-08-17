@@ -1,0 +1,7 @@
+{
+  "prompt": "Explain why evaluation matters for an LLM application in three bullet points.",
+  "models": [
+    {"name": "fast-local", "type": "mock", "settings": {"temperature": 0.0}, "response": "[fast-local] Evaluation makes quality measurable, regressions visible, and trade-offs explicit."},
+    {"name": "creative-local", "type": "mock", "settings": {"temperature": 0.8}, "response": "[creative-local] Evaluation turns subjective model impressions into repeatable engineering signals."}
+  ]
+}

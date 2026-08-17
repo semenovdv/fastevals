@@ -1,0 +1,7 @@
+{
+  "prompt": "Summarize the benefits of automated evaluation in three bullet points.",
+  "models": [
+    {"name": "baseline", "type": "mock", "settings": {"temperature": 0}, "response": "- Quality is measurable\n- Regressions are visible\n- Model trade-offs are explicit"},
+    {"name": "alternative", "type": "mock", "settings": {"temperature": 0.7}, "response": "- Repeatable tests\n- Faster iteration\n- Better decisions"}
+  ]
+}
