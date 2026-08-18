@@ -168,21 +168,11 @@ cp .env.example .env
 
 Load the variables in your shell before running `fasteval`. The real `.env` file must remain local.
 
-## LLM connectors
+## LLM providers
 
-The `fasteval.llm.providers` package is copied from `ai-doc-parser` and contains the existing OpenAI, Gemini, and OpenRouter connectors plus shared request/result abstractions. The copied provider code is kept separate from the CLI runner so it can be adapted incrementally without changing report format.
+Model calls go through [LiteLLM](https://github.com/BerriAI/litellm). Configure models in `config/models.toml`; the runner resolves API keys from environment variables listed in each entry.
 
-Provider discovery does not import SDKs eagerly:
-
-```python
-from fasteval.llm.providers import get_capabilities, get_provider, list_providers
-
-print(list_providers())
-print(get_capabilities("openai"))
-client = get_provider("openai", api_key="...")
-```
-
-Install native connector dependencies only when needed:
+Install provider dependencies when running real models:
 
 ```bash
 python3 -m pip install -e '.[native]'
