@@ -16,7 +16,7 @@ from .registry import default_registry_path, load_registry, select_specs
 from .structured import validated_instance
 from .tags import resolve_tag
 
-__all__ = ["ModelResponse", "RunResult", "run"]
+__all__ = ["ModelResponse", "RunResult", "run_evals"]
 
 
 def _resolve_cases(config: RunConfig) -> list[Case]:
@@ -33,7 +33,7 @@ def _resolve_cases(config: RunConfig) -> list[Case]:
     return cases
 
 
-async def run(config: RunConfig) -> list[RunResult]:
+async def run_evals(config: RunConfig) -> list[RunResult]:
     """Execute the evaluation matrix: cases x attempts x models."""
     if config.registry and not Path(config.registry).exists():
         raise ConfigError(f"Model registry not found: {config.registry}")

@@ -253,11 +253,11 @@ cards, per-model aggregates for datasets.
 
 ```python
 import asyncio
-from fastevals import RunConfig, run, save_report
+from fastevals import RunConfig, run_evals, save_report
 
 # a saved tag (see "Tags" above) or explicit selectors — both first-class
 config = RunConfig(prompt="Summarize eval best practices", tag="auto-fast")
-results = asyncio.run(run(config))
+results = asyncio.run(run_evals(config))
 save_report(config, results, "runs")
 print(results[0].output, results[0].latency_ms, results[0].total_cost_usd)
 ```
