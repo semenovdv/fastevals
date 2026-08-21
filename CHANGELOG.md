@@ -8,6 +8,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Tags: named model suites as reusable presets.** `fastevals tag
+  add/list/show/remove` stores validated selector suites in
+  `~/.config/fastevals/tags.toml`, shared across terminals and MCP clients;
+  `fastevals --tag NAME` (or the MCP `run_evaluation(tag=...)` argument)
+  runs a suite without retyping models. New MCP tools `add_tag` and
+  `list_tags` let agents define and discover suites themselves; invalid
+  selectors are rejected at save time.
 - Model selectors for cherry-picking the comparison matrix without editing a
   registry: `-m/--models` on the CLI, a `models` argument on the MCP
   `run_evaluation` tool, and `RunConfig(models=...)` in Python. Grammar:

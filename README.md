@@ -51,15 +51,54 @@ Exposed tools:
 
 Example agent prompts that now just work:
 
-> Use fastevals with models "openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low"
-> on "Summarize this contract in 5 bullets" — which one is faster and
-> cheaper on this task?
+> Create a fastevals tag "reasoning-cost" comparing openai/gpt-5.6-luna@high
+> against openai/gpt-5.6-sol@low, then run "Summarize this contract in 5
+> bullets" through it — which one is faster and cheaper on this task?
+
+> Evaluate cases.jsonl with my nightly tag, 3 runs per case, and report the
+> pass rate per model.
 
 > List my registered models, then evaluate cases.jsonl on terra and report
 > the pass rate per effort level.
 
 Because the CLI is fully non-interactive and returns structured JSON, agents
 can also drive evaluations through plain shell execution without MCP.
+
+## Tags: build your model suite once
+
+The headline workflow. Save a named suite of model selectors, then you — and
+every agent on the machine — reuse it forever instead of retyping models:
+
+```bash
+# 1. Define a suite (selectors are validated against the registry on save)
+fastevals tag add cheap \
+  --models "openai/gpt-5.6-luna@none|openai/gpt-5.6-luna@low" \
+  -d "Cheap tier for smoke checks"
+
+fastevals tag add nightly \
+  --models "openai/gpt-5.6-luna|openai/gpt-5.6-terra" \
+  -d "Full nightly matrix"
+
+# 2. Run with it
+fastevals --tag cheap --prompt "Summarize this" --out runs
+fastevals --tag nightly --dataset cases.jsonl --nruns 3 --out runs/nightly
+
+# 3. Manage
+fastevals tag list          # everything saved, with descriptions
+fastevals tag show cheap    # one suite as JSON
+fastevals tag remove cheap
+```
+
+Tags live in `~/.config/fastevals/tags.toml`, so they are shared across all
+your terminals **and every MCP client**. Agents can define suites themselves:
+the `add_tag` / `list_tags` tools mirror the CLI, and `run_evaluation` takes
+a `tag` argument. Typical agent flow:
+
+> Create a fastevals tag called "vision" with openai/gpt-5.6-luna at none and
+> low, then run my cases.jsonl through it and report the pass rate.
+
+Suites store raw selectors, so they keep working as your registry grows;
+invalid selectors cannot be saved in the first place.
 
 ## Why fastevals
 
