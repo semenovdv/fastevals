@@ -10,6 +10,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 - `--version` and `--list-models` CLI flags; the latter prints the resolved
   registry as JSON (shared implementation with the MCP `list_models` tool).
+- Automatic retries for transient provider failures with exponential
+  backoff (`max_retries` per registry entry, default 2 — three attempts).
 
 ### Changed
 

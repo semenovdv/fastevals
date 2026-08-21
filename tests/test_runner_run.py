@@ -143,7 +143,7 @@ async def test_missing_litellm_yields_clear_error(monkeypatch, openai_registry):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("fastevals.providers._litellm_completion", None)
     results = await run(RunConfig(prompt="hi", providers=frozenset({"openai"}), registry=str(openai_registry)))
-    assert "fastevals[native]" in results[0].error
+    assert "LiteLLM is not installed" in results[0].error
 
 
 def test_run_config_rejects_blank_prompt():
