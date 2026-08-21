@@ -14,6 +14,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from .builtin_tags import BUILTIN_TAG_NAMES, builtin_selectors, ensure_not_reserved
 from .exceptions import ConfigError
 
 __all__ = ["default_tags_path", "load_tags", "remove_tag", "save_tag"]
@@ -75,6 +76,7 @@ def save_tag(
     path: str | Path | None = None,
 ) -> None:
     """Create or overwrite one tag, preserving unrelated entries."""
+    ensure_not_reserved(name)
     if not name.strip():
         raise ConfigError("Tag name must not be empty")
     clean_models = [model.strip() for model in models if model.strip()]
@@ -99,12 +101,24 @@ def remove_tag(name: str, path: str | Path | None = None) -> bool:
     return True
 
 
-def resolve_tag(name: str, path: str | Path | None = None) -> list[str]:
-    """Expand one tag into its selector list, or fail listing available tags."""
-    tags = load_tags(path)
+def resolve_tag(
+    name: str, path: str | Path | None = None, entries: dict[str, dict[str, Any]] | None = None
+) -> list[str]:
+    """Expand one tag into its selector list.
+
+    Resolution order: user-saved tags first, then the built-in recipes
+    (``auto-fast``, ``auto-deep``, ``auto-cheap``, ``auto-flagship``)
+    computed against ``entries``. Fails listing everything available.
+    """
     key = name.strip()
-    if key not in tags:
-        available = ", ".join(sorted(tags)) or "none defined yet"
-        raise ConfigError(f"Unknown tag '{key}'. Available tags: {available}")
-    selectors: list[str] = tags[key]["models"]
-    return selectors
+    tags = load_tags(path)
+    if key in tags:
+        selectors: list[str] = tags[key]["models"]
+        return selectors
+    builtin = builtin_selectors(key, entries or {})
+    if builtin is not None:
+        return builtin
+    user_available = ", ".join(sorted(tags)) or "none saved yet"
+    raise ConfigError(
+        f"Unknown tag '{key}'. Available — saved: {user_available}; built-in: {', '.join(BUILTIN_TAG_NAMES)}"
+    )

@@ -14,6 +14,7 @@ from .pricing import compute_costs
 from .providers import call_model, scrub_secrets
 from .registry import default_registry_path, load_registry, select_specs
 from .structured import validated_instance
+from .tags import resolve_tag
 
 __all__ = ["ModelResponse", "RunResult", "run"]
 
@@ -37,7 +38,10 @@ async def run(config: RunConfig) -> list[RunResult]:
     if config.registry and not Path(config.registry).exists():
         raise ConfigError(f"Model registry not found: {config.registry}")
     entries = load_registry(Path(config.registry) if config.registry else default_registry_path())
-    specs = select_specs(entries, config.requested_providers(), selectors=config.models)
+    selectors: list[str] | frozenset[str] | None = config.models
+    if config.tag:
+        selectors = resolve_tag(config.tag, entries=entries)
+    specs = select_specs(entries, config.requested_providers(), selectors=selectors)
     cases = _resolve_cases(config)
     semaphore = asyncio.Semaphore(config.max_concurrency)
 

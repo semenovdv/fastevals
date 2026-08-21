@@ -41,7 +41,9 @@ def test_resolve_unknown_tag_lists_available(tmp_path: Path):
     save_tag("known", ["openai/gpt-5.6-luna"], path=tmp_path / "tags.toml")
     with pytest.raises(ConfigError) as excinfo:
         resolve_tag("nope", path=tmp_path / "tags.toml")
-    assert "Available tags: known" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "saved: known" in message
+    assert "built-in: auto-cheap" in message
 
 
 def test_broken_tags_file_reports_path(tmp_path: Path):

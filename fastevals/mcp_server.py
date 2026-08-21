@@ -16,7 +16,7 @@ from .registry import default_registry_path, describe_registry, load_registry, s
 from .report import save_report
 from .runner import run
 from .structured import shorthand_to_schema
-from .tags import load_tags, resolve_tag, save_tag
+from .tags import load_tags, save_tag
 
 __all__ = ["build_server", "main"]
 
@@ -68,16 +68,12 @@ async def run_evaluation(
     try:
         if tag and models:
             return {"ok": False, "error": "Use tag or models, not both"}
-        selectors = resolve_tag(tag) if tag else None
-        if tag and not selectors:
-            return {"ok": False, "error": f"Tag '{tag}' has no model selectors"}
         schema = shorthand_to_schema(structured_output) if structured_output else None
         config = RunConfig(
             prompt=prompt,
             providers=frozenset(part.strip().lower() for part in providers.split("|") if part.strip()),
-            models=frozenset(selectors)
-            if selectors
-            else (frozenset(part.strip() for part in models.split("|") if part.strip()) if models else None),
+            models=frozenset(part.strip() for part in models.split("|") if part.strip()) if models else None,
+            tag=tag,
             structured_output=schema,
             dataset=dataset,
             file=file,
