@@ -161,3 +161,53 @@ async def test_get_run_missing_file():
     result = await build_server().call_tool("get_run", {"json_path": "/nope/run.json"})
     payload = parse(result)
     assert payload["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_add_and_use_tag_via_mcp(tmp_path: Path, fake_llm, api_key, openai_registry, monkeypatch):
+    monkeypatch.setenv("FASTEVAL_TAGS_FILE", str(tmp_path / "tags.toml"))
+    server = build_server()
+
+    added = parse(
+        await server.call_tool(
+            "add_tag",
+            {
+                "name": "pair",
+                "models": "openai/gpt-test@off|openai/gpt-test@low",
+                "description": "two-effort suite",
+                "registry": str(openai_registry),
+            },
+        )
+    )
+    assert added["ok"] is True
+    assert added["cells_in_current_registry"] == 2
+
+    listed = parse(await server.call_tool("list_tags", {}))
+    assert listed["tags"]["pair"]["models"] == ["openai/gpt-test@off", "openai/gpt-test@low"]
+
+    calls = fake_llm(text="hi")
+    result = await server.call_tool(
+        "run_evaluation",
+        {
+            "prompt": "hi",
+            "providers": "openai",
+            "registry": str(openai_registry),
+            "tag": "pair",
+            "out": str(tmp_path),
+        },
+    )
+    payload = parse(result)
+    assert payload["ok"] is True
+    assert len(payload["results"]) == 2
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_tag_and_models_mutually_exclusive_in_mcp(tmp_path: Path):
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {"prompt": "hi", "tag": "x", "models": "openai/gpt-5.6-luna"},
+    )
+    payload = parse(result)
+    assert payload["ok"] is False
+    assert "not both" in payload["error"]

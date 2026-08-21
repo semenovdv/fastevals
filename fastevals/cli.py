@@ -5,14 +5,16 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .config import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, RunConfig
-from .exceptions import FastEvalError
-from .registry import default_registry_path, describe_registry, load_registry
+from .exceptions import ConfigError, FastEvalError
+from .registry import default_registry_path, describe_registry, load_registry, select_specs
 from .report import save_report
 from .runner import run
 from .structured import shorthand_to_schema
+from .tags import default_tags_path, load_tags, remove_tag, resolve_tag, save_tag
 
 ALL_PROVIDERS = "all"
 
@@ -60,11 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   fastevals --list-models
-  fastevals --prompt \"Summarize this\" --providers \"openai|gemini\" --out runs
-  fastevals --image image.png --prompt \"Find widget bboxes\" \\
-    --structured-output \"x:int(X coord),y:int(Y coord),width:int(Width),height:int(Height)\" \\
-    --providers openai
-  fastevals --dataset cases.jsonl --nruns 3 --providers openai --out runs/dataset
+  fastevals tag add cheap --models "openai/gpt-5.6-luna@none|openai/gpt-5.6-luna@low" -d "Smoke suite"
+  fastevals --tag cheap --prompt \"Summarize this\" --out runs
+  fastevals --models \"openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low\" \\
+    --prompt \"Find widget bboxes\" --providers openai
+  fastevals --dataset cases.jsonl --nruns 3 --tag nightly --out runs/dataset
 
 """,
     )
@@ -79,6 +81,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-s", "--structured-output", help="Structured output compact schema for the response")
     parser.add_argument("-f", "--file", type=Path, help="Input document (sent to the model as an attachment)")
     parser.add_argument("-i", "--image", type=Path, help="Input image")
+    parser.add_argument(
+        "-t",
+        "--tag",
+        help="Use a saved model-suite tag instead of typing --models (see: fastevals tag list)",
+    )
     parser.add_argument(
         "--providers",
         type=_parse_providers,
@@ -107,6 +114,27 @@ def build_parser() -> argparse.ArgumentParser:
         "-c", "--concurrency", type=int, default=DEFAULT_MAX_CONCURRENCY, help="Max parallel model calls"
     )
     parser.add_argument("-o", "--out", type=Path, default=Path("runs"), help="Output directory")
+
+    sub = parser.add_subparsers(dest="command")
+    tag_parser = sub.add_parser("tag", help="Manage saved model suites (presets)")
+    tag_sub = tag_parser.add_subparsers(dest="tag_command", required=True)
+
+    tag_add = tag_sub.add_parser("add", help="Create or overwrite a tag")
+    tag_add.add_argument("name")
+    tag_add.add_argument(
+        "-m",
+        "--models",
+        required=True,
+        help="Pipe-separated selectors, provider required: 'openai/gpt-5.6-luna@none|openai/gpt-5.6-sol@low'",
+    )
+    tag_add.add_argument("-d", "--description", help="What the suite is for")
+    tag_add.add_argument("-r", "--registry", type=Path, help="Validate selectors against this registry")
+
+    tag_sub.add_parser("list", help="List all tags")
+    tag_show = tag_sub.add_parser("show", help="Print one tag as JSON")
+    tag_show.add_argument("name")
+    tag_remove = tag_sub.add_parser("remove", help="Delete a tag")
+    tag_remove.add_argument("name")
     return parser
 
 
@@ -121,18 +149,85 @@ def _print_models(registry_override: Path | None) -> int:
     return 0
 
 
+def _emit(payload: dict[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _handle_tag(args: argparse.Namespace) -> int:
+    if args.tag_command == "add":
+        selectors = _parse_models(args.models)
+        registry_path = args.registry or default_registry_path()
+        try:
+            entries = load_registry(registry_path)
+            cells = len(select_specs(entries, {"all"}, selectors=selectors))
+            save_tag(args.name, sorted(selectors), args.description)
+        except FastEvalError as exc:
+            _emit({"ok": False, "name": args.name, "error": str(exc)})
+            return 1
+        _emit(
+            {
+                "ok": True,
+                "name": args.name.strip(),
+                "description": args.description,
+                "models": sorted(selectors),
+                "cells_in_current_registry": cells,
+            }
+        )
+        return 0
+
+    if args.tag_command == "list":
+        tags = load_tags()
+        _emit(
+            {
+                "ok": True,
+                "tags_file": str(default_tags_path()),
+                "tags": {
+                    name: {"description": tag["description"], "models": tag["models"]}
+                    for name, tag in sorted(tags.items())
+                },
+            }
+        )
+        return 0
+
+    if args.tag_command == "show":
+        try:
+            models = resolve_tag(args.name)
+        except FastEvalError as exc:
+            _emit({"ok": False, "name": args.name, "error": str(exc)})
+            return 1
+        description = load_tags().get(args.name.strip(), {}).get("description")
+        _emit({"ok": True, "name": args.name.strip(), "description": description, "models": models})
+        return 0
+
+    if args.tag_command == "remove":
+        existed = remove_tag(args.name)
+        _emit({"ok": True, "name": args.name.strip(), "removed": existed})
+        return 0
+
+    _emit({"ok": False, "error": f"Unknown tag command: {args.tag_command}"})
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     _load_dotenv()
     args = build_parser().parse_args(argv)
+
+    if getattr(args, "command", None) == "tag":
+        return _handle_tag(args)
 
     if args.list_models:
         return _print_models(args.registry)
 
     try:
+        models = args.models
+        if args.tag:
+            if args.models:
+                raise ConfigError("Use --tag or --models, not both")
+            models = frozenset(resolve_tag(args.tag))
         config = RunConfig(
             prompt=args.prompt or "",
             providers=args.providers,
-            models=args.models,
+            models=models,
             file=str(args.file) if args.file else None,
             image=str(args.image) if args.image else None,
             structured_output=shorthand_to_schema(args.structured_output) if args.structured_output else None,

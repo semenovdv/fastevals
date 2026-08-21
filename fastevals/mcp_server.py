@@ -12,10 +12,11 @@ from mcp.server.mcpserver.server import MCPServer
 
 from .config import ALL_PROVIDERS, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
-from .registry import default_registry_path, describe_registry, load_registry
+from .registry import default_registry_path, describe_registry, load_registry, select_specs
 from .report import save_report
 from .runner import run
 from .structured import shorthand_to_schema
+from .tags import load_tags, resolve_tag, save_tag
 
 __all__ = ["build_server", "main"]
 
@@ -34,6 +35,7 @@ async def run_evaluation(
     prompt: str = "",
     providers: str = ALL_PROVIDERS,
     models: str | None = None,
+    tag: str | None = None,
     structured_output: str | None = None,
     dataset: str | None = None,
     file: str | None = None,
@@ -52,6 +54,9 @@ async def run_evaluation(
             ``openai/gpt-5.6-luna@none,high`` or ``openai/gpt-5.6-sol@low``.
             The provider is mandatory — the same model string is often served
             by many providers. Use the list_models tool to discover ids.
+            Mutually exclusive with ``tag``.
+        tag: Optional name of a saved model suite (see the add_tag and
+            list_tags tools). Preferred over typing models every time.
         structured_output: Optional compact schema like ``name:str,age:int``.
         dataset: Optional JSONL/CSV path with cases (prompt, expected, evaluator, pattern).
         file: Optional document attachment (image, PDF or text file).
@@ -61,11 +66,18 @@ async def run_evaluation(
         out: Directory where reports are written.
     """
     try:
+        if tag and models:
+            return {"ok": False, "error": "Use tag or models, not both"}
+        selectors = resolve_tag(tag) if tag else None
+        if tag and not selectors:
+            return {"ok": False, "error": f"Tag '{tag}' has no model selectors"}
         schema = shorthand_to_schema(structured_output) if structured_output else None
         config = RunConfig(
             prompt=prompt,
             providers=frozenset(part.strip().lower() for part in providers.split("|") if part.strip()),
-            models=frozenset(part.strip() for part in models.split("|") if part.strip()) if models else None,
+            models=frozenset(selectors)
+            if selectors
+            else (frozenset(part.strip() for part in models.split("|") if part.strip()) if models else None),
             structured_output=schema,
             dataset=dataset,
             file=file,
@@ -116,6 +128,55 @@ def list_models(registry: str | None = None) -> dict[str, Any]:
         "registry": str(path),
         "supported_providers": list(SUPPORTED_PROVIDERS),
         "models": describe_registry(entries),
+    }
+
+
+@mcp.tool()
+def add_tag(
+    name: str,
+    models: str,
+    description: str | None = None,
+    registry: str | None = None,
+) -> dict[str, Any]:
+    """Save a named model suite ("tag") for reuse by you and agents.
+
+    Selectors are validated against the registry before saving, so a tag
+    can never contain unresolvable models.
+
+    Args:
+        name: Short suite name, e.g. ``cheap`` or ``nightly``.
+        models: Pipe-separated ``provider/model[@efforts]`` selectors.
+        description: Optional human-readable purpose of the suite.
+        registry: Optional path used only for validating the selectors now.
+    """
+    selectors = [part.strip() for part in models.split("|") if part.strip()]
+    if not selectors:
+        return {"ok": False, "error": "Provide at least one model selector"}
+    path = Path(registry) if registry else default_registry_path()
+    try:
+        entries = load_registry(path)
+        cells = len(select_specs(entries, {"all"}, selectors=selectors))
+        save_tag(name, selectors, description)
+    except FastEvalError as exc:
+        return {"ok": False, "name": name, "error": str(exc)}
+    return {
+        "ok": True,
+        "name": name,
+        "description": description,
+        "models": selectors,
+        "cells_in_current_registry": cells,
+    }
+
+
+@mcp.tool()
+def list_tags() -> dict[str, Any]:
+    """List saved model suites (tags) usable as run_evaluation's ``tag`` argument."""
+    tags = load_tags()
+    return {
+        "ok": True,
+        "tags": {
+            name: {"description": tag["description"], "models": tag["models"]} for name, tag in sorted(tags.items())
+        },
     }
 
 
