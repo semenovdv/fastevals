@@ -1,5 +1,6 @@
 """Provider adapters: one documented contract over LiteLLM."""
 
+import asyncio
 import base64
 import mimetypes
 import os
@@ -19,6 +20,12 @@ try:  # LiteLLM is optional; config parsing and report rendering work without it
     from litellm import acompletion as _litellm_completion
 except ImportError:  # pragma: no cover - exercised via import guard test
     _litellm_completion = None
+
+RETRY_BASE_DELAY_S = 0.5
+
+
+async def _sleep(seconds: float) -> None:
+    await asyncio.sleep(seconds)
 
 
 def litellm_model_name(provider: str, model: str) -> str:
@@ -130,9 +137,21 @@ async def call_model(
     image_path: str | None = None,
     response_schema: dict[str, Any] | None = None,
 ) -> ModelResponse:
-    """Execute one model call through the provider adapter."""
+    """Execute one model call through the provider adapter.
+
+    Transient provider failures are retried with exponential backoff
+    (``1 + max_retries`` attempts); the final exception propagates.
+    """
     if _litellm_completion is None:
-        raise ProviderError('LiteLLM is not installed. Install provider support: pip install "fastevals[native]"')
+        raise ProviderError('LiteLLM is not installed. Install provider support: pip install "fastevals"')
     request = _build_request(spec, prompt, file_path, image_path, response_schema)
-    response = await _litellm_completion(**request)
+    attempts = 1 + max(0, spec.max_retries)
+    for attempt in range(attempts):
+        try:
+            response = await _litellm_completion(**request)
+            break
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            await _sleep(RETRY_BASE_DELAY_S * (2**attempt))
     return parse_response(response)

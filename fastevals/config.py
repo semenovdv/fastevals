@@ -38,6 +38,7 @@ _KNOWN_SPEC_KEYS = frozenset(
         "output_cost_usd_per_mtok",
         "reasoning_cost_usd_per_mtok",
         "timeout_s",
+        "max_retries",
     }
 )
 
@@ -97,6 +98,7 @@ class ModelSpec:
     output_cost_usd_per_mtok: float | None = None
     reasoning_cost_usd_per_mtok: float | None = None
     timeout_s: int = DEFAULT_TIMEOUT_S
+    max_retries: int = 2
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any], spec_id: str) -> "ModelSpec":
@@ -122,6 +124,13 @@ class ModelSpec:
         ):
             if raw.get(key) is not None:
                 fields[key] = raw[key]
+        if raw.get("max_retries") is not None:
+            try:
+                fields["max_retries"] = max(0, int(raw["max_retries"]))
+            except (TypeError, ValueError) as exc:
+                raise ConfigError(
+                    f"Registry entry '{spec_id}' has invalid max_retries: {raw['max_retries']!r}"
+                ) from exc
         if raw.get("timeout_s") is not None:
             try:
                 fields["timeout_s"] = max(1, int(raw["timeout_s"]))
