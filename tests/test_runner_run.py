@@ -98,6 +98,7 @@ async def test_no_models_for_provider_raises(tmp_path):
 @pytest.mark.asyncio
 async def test_partial_failure_keeps_matrix(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
     # Bypass the litellm install guard so the missing-credential check is
     # reached deterministically, regardless of installed extras.
     async def _stub(**request):
