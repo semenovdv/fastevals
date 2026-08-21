@@ -6,25 +6,25 @@ from fasteval.report import render_html_report, save_report
 
 
 def make_result(**overrides) -> RunResult:
-    defaults = dict(
-        provider="openai",
-        model="gpt-test",
-        reasoning_effort="none",
-        output="Hello",
-        latency_ms=1200.0,
-        time_to_first_token_ms=None,
-        input_tokens=10,
-        output_tokens=5,
-        reasoning_tokens=1,
-        cached_tokens=2,
-        input_cost_usd=0.00001,
-        output_cost_usd=0.00002,
-        reasoning_cost_usd=0.0,
-        cached_cost_usd=0.0,
-        tokens_per_second=4.2,
-        finish_reason="stop",
-        response_id="resp-1",
-    )
+    defaults: dict = {
+        "provider": "openai",
+        "model": "gpt-test",
+        "reasoning_effort": "none",
+        "output": "Hello",
+        "latency_ms": 1200.0,
+        "time_to_first_token_ms": None,
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "reasoning_tokens": 1,
+        "cached_tokens": 2,
+        "input_cost_usd": 0.00001,
+        "output_cost_usd": 0.00002,
+        "reasoning_cost_usd": 0.0,
+        "cached_cost_usd": 0.0,
+        "tokens_per_second": 4.2,
+        "finish_reason": "stop",
+        "response_id": "resp-1",
+    }
     defaults.update(overrides)
     return RunResult(**defaults)
 

@@ -3,7 +3,7 @@
 import json
 import uuid
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -56,11 +56,15 @@ def _render_config_items(config: RunConfig) -> str:
         ("Prompt", config.prompt),
         ("File", config.file),
         ("Image", config.image),
-        ("Structured output", json.dumps(config.structured_output, ensure_ascii=False, indent=2) if config.structured_output else None),
+        (
+            "Structured output",
+            json.dumps(config.structured_output, ensure_ascii=False, indent=2) if config.structured_output else None,
+        ),
     ]
+    muted_cell = "<span class='muted'>—</span>"
     return "".join(
         f"<div class='config-item'><span class='config-key'>{_escape(label)}</span>"
-        f"<div class='config-value'>{_escape(str(value)) if value else '<span class=\"muted\">—</span>'}</div></div>"
+        f"<div class='config-value'>{_escape(str(value)) if value else muted_cell}</div></div>"
         for label, value in items
     )
 
@@ -70,7 +74,9 @@ def _render_summary_cards(results: list[RunResult]) -> str:
     total_cost = sum(row.total_cost_usd or 0 for row in results)
     latencies = [row.latency_ms for row in results if row.latency_ms is not None and row.ok]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
-    total_tokens = sum((row.input_tokens or 0) + (row.output_tokens or 0) + (row.reasoning_tokens or 0) for row in results)
+    total_tokens = sum(
+        (row.input_tokens or 0) + (row.output_tokens or 0) + (row.reasoning_tokens or 0) for row in results
+    )
     cards = [
         ("Models", str(len(results)), "Runs in this matrix"),
         ("Success", f"{ok_count}/{len(results)}", "Completed without error"),
@@ -519,10 +525,10 @@ def save_report(
     include_html: bool = True,
 ) -> tuple[Path, Path | None]:
     """Persist ``run.json`` and the standalone HTML report for one run."""
-    run_id = f"{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+    run_id = f"{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
     run_dir = Path(output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     payload = {
         "prompt": config.prompt,
         "file": config.file,

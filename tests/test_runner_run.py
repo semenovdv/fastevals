@@ -143,7 +143,12 @@ async def test_structured_output_validates_provider_response(tmp_path, monkeypat
     registry = write_registry(tmp_path, OPENAI_REGISTRY)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
     monkeypatch.setattr(providers, "_litellm_completion", fake_completion(text="not json at all"))
-    schema = {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"], "additionalProperties": False}
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "required": ["name"],
+        "additionalProperties": False,
+    }
     config = RunConfig(prompt="hi", providers=frozenset({"openai"}), registry=registry, structured_output=schema)
     results = await run(config)
     assert "not valid JSON" in results[0].error

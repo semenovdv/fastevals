@@ -16,7 +16,9 @@ def test_costs_with_all_rates_configured():
         reasoning_cost_usd_per_mtok=12.0,
         cached_input_cost_usd_per_mtok=0.1,
     )
-    response = ModelResponse(text="x", input_tokens=1_000_000, output_tokens=500_000, reasoning_tokens=250_000, cached_tokens=100_000)
+    response = ModelResponse(
+        text="x", input_tokens=1_000_000, output_tokens=500_000, reasoning_tokens=250_000, cached_tokens=100_000
+    )
     costs = compute_costs(spec, response)
     assert costs.input == pytest.approx(1.0)
     assert costs.output == pytest.approx(3.0)

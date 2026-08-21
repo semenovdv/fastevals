@@ -28,7 +28,9 @@ def test_array_fields():
 
 
 def test_descriptions_support_quotes_and_commas():
-    schema = shorthand_to_schema('id:str("Unique ID"),total:float("Amount, including taxes"),note:str(\'Optional note\')')
+    schema = shorthand_to_schema(
+        'id:str("Unique ID"),total:float("Amount, including taxes"),note:str(\'Optional note\')'
+    )
     assert schema["properties"]["id"]["description"] == "Unique ID"
     assert schema["properties"]["total"]["description"] == "Amount, including taxes"
     assert schema["properties"]["note"]["description"] == "Optional note"
@@ -63,7 +65,11 @@ def test_optional_marker_can_follow_description():
 
 def test_described_array():
     schema = shorthand_to_schema('tags:str[]("Classification tags")')
-    assert schema["properties"]["tags"] == {"type": "array", "items": {"type": "string"}, "description": "Classification tags"}
+    assert schema["properties"]["tags"] == {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Classification tags",
+    }
 
 
 @pytest.mark.parametrize("spec", ["name:str,", ",name:str", "name:str,,age:int", "name:str,name:int"])
@@ -72,7 +78,7 @@ def test_empty_or_duplicate_fields_raise(spec):
         shorthand_to_schema(spec)
 
 
-@pytest.mark.parametrize("spec", ["name:str(\"unterminated)", "name:str(unquoted)", "name:str(\"x\"", "name:str(\"x\"))"])
+@pytest.mark.parametrize("spec", ['name:str("unterminated)', "name:str(unquoted)", 'name:str("x"', 'name:str("x"))'])
 def test_malformed_descriptions_raise(spec):
     with pytest.raises(ValueError):
         shorthand_to_schema(spec)

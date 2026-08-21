@@ -59,9 +59,17 @@ def select_specs(entries: dict[str, dict[str, Any]], requested: set[str]) -> lis
     """
     if ALL_PROVIDERS in requested or not requested:
         selected = {str(entry.get("provider", "")).lower() for entry in entries.values()} - {"mock"}
-        rows = [dict(entry, id=model_id) for model_id, entry in entries.items() if str(entry.get("provider", "")).lower() in selected]
+        rows = [
+            dict(entry, id=model_id)
+            for model_id, entry in entries.items()
+            if str(entry.get("provider", "")).lower() in selected
+        ]
     else:
-        rows = [dict(entry, id=model_id) for model_id, entry in entries.items() if str(entry.get("provider", "")).lower() in requested]
+        rows = [
+            dict(entry, id=model_id)
+            for model_id, entry in entries.items()
+            if str(entry.get("provider", "")).lower() in requested
+        ]
         if not rows and requested == {"mock"}:
             rows = [dict(entry, id=model_id) for model_id, entry in BUILTIN_MOCK_MODELS.items()]
     if not rows:

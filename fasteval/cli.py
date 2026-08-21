@@ -4,10 +4,9 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 from pathlib import Path
 
-from .config import DEFAULT_MAX_CONCURRENCY, RunConfig, SUPPORTED_PROVIDERS
+from .config import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
 from .report import save_report
 from .runner import run
@@ -51,8 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Compare one task results across LLM providers and models.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
-  fasteval --prompt \"Summarize this\" --file report.pdf --providers \"openai|gemini\" --out runs
-  fasteval --image image.png --prompt \"Find widget bboxes\" --structured-output \"x:int(X start coordinate),y:int(Y start coordinate),width:int(Width),height:int(Height)\" --providers openai
+  fasteval --prompt \"Summarize this\" --providers \"openai|gemini\" --out runs
+  fasteval --image image.png --prompt \"Find widget bboxes\" \\
+    --structured-output \"x:int(X coord),y:int(Y coord),width:int(Width),height:int(Height)\" \\
+    --providers openai
   fasteval --prompt \"Hello\" --providers mock   # no API key needed
 
 """,
@@ -68,8 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=frozenset({ALL_PROVIDERS}),
         help=f"Pipe-separated providers: {'|'.join(SUPPORTED_PROVIDERS)}|all (default: all)",
     )
-    parser.add_argument("-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)")
-    parser.add_argument("-c", "--concurrency", type=int, default=DEFAULT_MAX_CONCURRENCY, help="Max parallel model calls")
+    parser.add_argument(
+        "-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)"
+    )
+    parser.add_argument(
+        "-c", "--concurrency", type=int, default=DEFAULT_MAX_CONCURRENCY, help="Max parallel model calls"
+    )
     parser.add_argument("-o", "--out", type=Path, default=Path("runs"), help="Output directory")
     return parser
 

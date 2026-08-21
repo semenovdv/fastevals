@@ -61,7 +61,7 @@ def shorthand_to_schema(spec: str) -> dict[str, Any]:
         if type_name not in _TYPE_MAP:
             supported = ", ".join(sorted(_TYPE_MAP))
             raise ValueError(f"Unknown type '{type_name}' for field '{name}'. Supported: {supported}")
-        schema = dict(_TYPE_MAP[type_name])
+        schema: dict[str, Any] = dict(_TYPE_MAP[type_name])
         if is_array:
             schema = {"type": "array", "items": schema}
         if description:

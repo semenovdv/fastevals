@@ -58,7 +58,9 @@ def test_structured_mock_run_end_to_end(tmp_path, capsys):
 def test_failed_run_returns_exit_code_one(tmp_path, capsys):
     empty_registry = tmp_path / "empty.toml"
     empty_registry.write_text("")
-    exit_code = main(["--prompt", "hi", "--providers", "openai", "--registry", str(empty_registry), "--out", str(tmp_path)])
+    exit_code = main(
+        ["--prompt", "hi", "--providers", "openai", "--registry", str(empty_registry), "--out", str(tmp_path)]
+    )
     assert exit_code == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False

@@ -10,9 +10,9 @@ __all__ = [
     "ALL_PROVIDERS",
     "DEFAULT_MAX_CONCURRENCY",
     "DEFAULT_TIMEOUT_S",
+    "SUPPORTED_PROVIDERS",
     "ModelSpec",
     "RunConfig",
-    "SUPPORTED_PROVIDERS",
 ]
 
 ALL_PROVIDERS = "all"

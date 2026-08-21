@@ -10,7 +10,7 @@ __all__ = ["Costs", "compute_costs"]
 
 @dataclass(frozen=True)
 class Costs:
-    """Per-bucket USD costs. ``None`` means "not measurable".""" 
+    """Per-bucket USD costs. ``None`` means "not measurable"."""
 
     input: float | None = None
     output: float | None = None
@@ -47,6 +47,8 @@ def compute_costs(spec: ModelSpec, response: ModelResponse) -> Costs:
     return Costs(
         input=_cost(response.input_tokens, _rate(spec, "input_cost_usd_per_mtok")),
         output=_cost(response.output_tokens, _rate(spec, "output_cost_usd_per_mtok")),
-        reasoning=_cost(response.reasoning_tokens, _rate(spec, "reasoning_cost_usd_per_mtok", "output_cost_usd_per_mtok")),
+        reasoning=_cost(
+            response.reasoning_tokens, _rate(spec, "reasoning_cost_usd_per_mtok", "output_cost_usd_per_mtok")
+        ),
         cached=_cost(response.cached_tokens, _rate(spec, "cached_input_cost_usd_per_mtok", "cached_cost_usd_per_mtok")),
     )
