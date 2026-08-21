@@ -51,8 +51,9 @@ Exposed tools:
 
 Example agent prompts that now just work:
 
-> Use fastevals to compare gpt-5.6-luna at reasoning low and high on "Summarize
-> this contract in 5 bullets" — which one is cheaper per correct answer?
+> Use fastevals to compare gpt-5.6-luna at reasoning high against gpt-5.6-sol
+> at low on "Summarize this contract in 5 bullets" — which one is faster and
+> cheaper on this task?
 
 > List my registered models, then evaluate cases.jsonl on terra and report
 > the pass rate per effort level.
