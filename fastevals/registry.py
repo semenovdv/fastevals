@@ -45,30 +45,40 @@ def _expand_efforts(raw: dict[str, Any]) -> list[dict[str, Any]]:
     return [{**raw, "reasoning_effort": effort} for effort in efforts]
 
 
-def parse_selectors(raw: Iterable[str]) -> list[tuple[str, set[str] | None]]:
-    """Parse model selector tokens into ``(name_part, efforts | None)`` pairs.
+def parse_selectors(raw: Iterable[str]) -> list[tuple[str | None, str, set[str] | None]]:
+    """Parse model selector tokens into ``(provider, model, efforts)`` triples.
 
-    Grammar: ``name[@effort[,effort...]]``. ``name`` matches
-    case-insensitively as a substring of the model name or entry id; the
-    optional ``@`` part narrows reasoning efforts after expansion, e.g.
-    ``luna@none,high`` or ``terra@low``. Selectors themselves are joined
-    with ``|`` at the call site.
+    Grammar: ``[provider/]model[@effort[,effort...]]``. ``model`` is the
+    exact official model id (e.g. ``gpt-5.6-luna``), matched
+    case-insensitively against the registry ``model`` field or the full
+    entry id (``openai:gpt-5.6-luna``) so ids from ``--list-models`` can be
+    pasted verbatim. The provider part, when given, matches exactly. The
+    optional effort list narrows rows after expansion. Selectors are
+    joined with ``|`` at the call site.
     """
-    parsed: list[tuple[str, set[str] | None]] = []
+    parsed: list[tuple[str | None, str, set[str] | None]] = []
     for token in raw:
         token = token.strip()
         if not token:
             continue
-        name, sep, efforts_raw = token.partition("@")
-        name = name.strip().lower()
-        if not name:
+        head, sep, efforts_raw = token.partition("@")
+        provider: str | None = None
+        if "/" in head:
+            provider, _, model = head.partition("/")
+            provider = provider.strip().lower()
+            model = model.strip().lower()
+            if not provider or not model:
+                raise ConfigError(f"Invalid model selector '{token}': both provider and model are required around '/'")
+        else:
+            model = head.strip().lower()
+        if not model:
             raise ConfigError(f"Invalid model selector '{token}': model part is empty")
         efforts: set[str] | None = None
         if sep:
             efforts = {item.strip().lower() for item in efforts_raw.split(",") if item.strip()}
             if not efforts:
                 raise ConfigError(f"Invalid model selector '{token}': effort list is empty")
-        parsed.append((name, efforts))
+        parsed.append((provider, model, efforts))
     return parsed
 
 
@@ -100,9 +110,10 @@ def select_specs(
             row
             for row in expanded
             if any(
-                (name in str(row.get("model", "")).lower() or name in row["id"].lower())
+                (provider is None or provider == str(row.get("provider", "")).lower())
+                and (model == str(row.get("model", "")).lower() or model == row["id"].lower())
                 and (efforts is None or str(row.get("reasoning_effort", "off")).lower() in efforts)
-                for name, efforts in selectors_parsed
+                for provider, model, efforts in selectors_parsed
             )
         ]
         if not narrowed and rows:

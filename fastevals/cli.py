@@ -89,7 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-m",
         "--models",
         type=_parse_models,
-        help="Cherry-pick models: 'luna@none,high', 'terra@low', 'gpt-5.6-sol' (pipe-separated)",
+        help="Cherry-pick models: 'openai/gpt-5.6-luna@none,high', 'openai/gpt-5.6-sol@low' (pipe-separated)",
     )
     parser.add_argument(
         "-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)"

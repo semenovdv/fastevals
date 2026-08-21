@@ -48,9 +48,10 @@ async def run_evaluation(
         prompt: The task prompt (omit when ``dataset`` supplies prompts).
         providers: Pipe-separated provider list, e.g. ``openai|openrouter`` or ``all``.
         models: Optional pipe-separated selectors narrowing the matrix, e.g.
-            ``luna@none|high`` or ``terra@low|high`` (substring match on model
-            name/id, optional ``@efforts`` filter). Use with the list_models
-            tool to discover ids first.
+            ``openai/gpt-5.6-luna@none,high`` or ``openai/gpt-5.6-sol@low``.
+            Canonical form is ``provider/model[@efforts]`` using the exact
+            model id (a bare exact id matches any provider). Use the
+            list_models tool to discover ids first.
         structured_output: Optional compact schema like ``name:str,age:int``.
         dataset: Optional JSONL/CSV path with cases (prompt, expected, evaluator, pattern).
         file: Optional document attachment (image, PDF or text file).

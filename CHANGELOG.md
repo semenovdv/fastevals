@@ -11,8 +11,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Model selectors for cherry-picking the comparison matrix without editing a
   registry: `-m/--models` on the CLI, a `models` argument on the MCP
   `run_evaluation` tool, and `RunConfig(models=...)` in Python. Grammar:
-  substring match on model name/id with optional `@effort,effort` filter
-  (e.g. `luna@high|sol@low`); unknown selectors fail listing available ids.
+  exact official model id (e.g. `gpt-5.6-luna`) with optional provider
+  qualification and `@effort,effort` filter —
+  `openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low`; ids from
+  `--list-models` paste back verbatim; unknown selectors fail listing
+  available ids.
 
 ## [0.1.2] - 2026-08-21
 

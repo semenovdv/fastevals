@@ -22,8 +22,8 @@ def test_parser_defaults_to_all_providers():
 
 
 def test_parser_accepts_model_selectors():
-    args = build_parser().parse_args(["--prompt", "x", "--models", "luna@none,high|terra@low"])
-    assert args.models == {"luna@none,high", "terra@low"}
+    args = build_parser().parse_args(["--prompt", "x", "--models", "openai/gpt-5.6-luna@none,high"])
+    assert args.models == {"openai/gpt-5.6-luna@none,high"}
 
 
 def test_parser_rejects_empty_models_value():
