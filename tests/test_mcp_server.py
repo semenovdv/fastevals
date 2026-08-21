@@ -88,3 +88,35 @@ async def test_get_run_missing_file():
     result = await build_server().call_tool("get_run", {"json_path": "/nope/run.json"})
     payload = parse(result)
     assert payload["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_list_models_with_custom_registry(tmp_path: Path):
+    registry = tmp_path / "custom.toml"
+    registry.write_text('["openai:gpt-x"]\nprovider = "openai"\nmodel = "gpt-x"\ninput_cost_usd_per_mtok = 2.0\n')
+    result = await build_server().call_tool("list_models", {"registry": str(registry)})
+    payload = parse(result)
+    assert payload["registry"] == str(registry)
+    assert payload["models"][0]["model"] == "gpt-x"
+
+
+@pytest.mark.asyncio
+async def test_list_models_with_broken_registry(tmp_path: Path):
+    registry = tmp_path / "broken.toml"
+    registry.write_text("")
+    result = await build_server().call_tool("list_models", {"registry": str(registry)})
+    payload = parse(result)
+    assert payload["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_saves_dataset_cases(tmp_path: Path):
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text(json.dumps({"id": "a", "prompt": "hi"}))
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {"providers": "mock", "dataset": str(dataset), "out": str(tmp_path)},
+    )
+    payload = parse(result)
+    saved = json.loads(Path(payload["json_path"]).read_text())
+    assert saved["cases"][0]["id"] == "a"

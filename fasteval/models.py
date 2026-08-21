@@ -1,6 +1,6 @@
 """Core result models shared across the package."""
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 __all__ = ["ModelResponse", "RunResult"]
@@ -56,6 +56,13 @@ class RunResult:
     error: str | None = None
     finish_reason: str | None = None
     response_id: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Serialize including computed convenience fields."""
+        data: dict[str, Any] = asdict(self)
+        data["ok"] = self.ok
+        data["total_cost_usd"] = self.total_cost_usd
+        return data
 
     @property
     def ok(self) -> bool:

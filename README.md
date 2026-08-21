@@ -9,7 +9,7 @@ standalone HTML comparison report with cost, latency and token metrics.
 
 [![CI](https://github.com/semenovdv/fasteval/actions/workflows/ci.yml/badge.svg)](https://github.com/semenovdv/fasteval/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/semenovdv/fasteval)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](#development)
+[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](#development)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![mypy](https://img.shields.io/badge/mypy-strict-blue)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)

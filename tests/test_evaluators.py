@@ -98,3 +98,15 @@ def test_unknown_evaluator_raises():
     case = Case(id="c", prompt="p", evaluator="llm_judge")
     with pytest.raises(ConfigError, match="Unknown evaluator"):
         evaluate_output(case, "text")
+
+
+def test_invalid_jsonl_line_reports_position(tmp_path: Path):
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text('{"prompt": "ok"}\n{broken json\n')
+    with pytest.raises(ConfigError, match="line 2"):
+        load_dataset(dataset)
+
+
+def test_case_as_dict_roundtrip():
+    case = Case(id="c", prompt="p", expected="e", evaluator="exact_match", pattern=None)
+    assert case.as_dict() == {"id": "c", "prompt": "p", "expected": "e", "evaluator": "exact_match", "pattern": None}

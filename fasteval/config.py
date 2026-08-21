@@ -34,6 +34,7 @@ _KNOWN_SPEC_KEYS = frozenset(
         "input_cost_usd_per_mtok",
         "cached_input_cost_usd_per_mtok",
         "cached_cost_usd_per_mtok",
+        "cached_write_cost_usd_per_mtok",
         "output_cost_usd_per_mtok",
         "reasoning_cost_usd_per_mtok",
         "timeout_s",
@@ -93,6 +94,7 @@ class ModelSpec:
     input_cost_usd_per_mtok: float | None = None
     cached_input_cost_usd_per_mtok: float | None = None
     cached_cost_usd_per_mtok: float | None = None
+    cached_write_cost_usd_per_mtok: float | None = None
     output_cost_usd_per_mtok: float | None = None
     reasoning_cost_usd_per_mtok: float | None = None
     timeout_s: int = DEFAULT_TIMEOUT_S
@@ -120,6 +122,7 @@ class ModelSpec:
             "input_cost_usd_per_mtok",
             "cached_input_cost_usd_per_mtok",
             "cached_cost_usd_per_mtok",
+            "cached_write_cost_usd_per_mtok",
             "output_cost_usd_per_mtok",
             "reasoning_cost_usd_per_mtok",
             "response",

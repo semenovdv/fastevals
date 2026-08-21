@@ -4,7 +4,6 @@ import csv
 import io
 import json
 import uuid
-from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -786,7 +785,7 @@ def save_report(
         "image": config.image,
         "structured_output": config.structured_output,
         "created_at": created_at,
-        "results": [asdict(row) for row in results],
+        "results": [row.as_dict() for row in results],
         "markdown_summary": _markdown_export(results),
     }
     json_path = run_dir / "run.json"

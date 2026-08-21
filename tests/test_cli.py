@@ -68,3 +68,14 @@ def test_failed_run_returns_exit_code_one(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False
     assert "registry is empty" in payload["error"]
+
+
+def test_dotenv_loaded_from_cwd(tmp_path, capsys, monkeypatch):
+    (tmp_path / ".env").write_text('MY_TEST_API_KEY="abc-123"\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MY_TEST_API_KEY", raising=False)
+    main(["--prompt", "hi", "--providers", "mock", "--out", str(tmp_path)])
+    capsys.readouterr()
+    import os
+
+    assert os.environ.get("MY_TEST_API_KEY") == "abc-123"

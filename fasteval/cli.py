@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         "ok": all(row.ok for row in results),
         "json_path": str(json_path),
         "html_path": str(html_path) if html_path else None,
-        "results": [vars(row) for row in results],
+        "results": [row.as_dict() for row in results],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
