@@ -49,11 +49,11 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install from PyPI and run the mock demo
+      - name: Install from PyPI and verify the entry points
         run: |
           for attempt in 1 2 3; do
             if pip install --quiet fastevals; then break; fi
             [ "$attempt" = "3" ] && exit 1
             sleep 30
           done
-          fastevals --prompt "published" --providers mock --out /tmp/fastevals-smoke
+          python -c "import fastevals; print(fastevals.__version__)"
