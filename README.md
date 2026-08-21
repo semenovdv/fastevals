@@ -51,9 +51,8 @@ Exposed tools:
 
 Example agent prompts that now just work:
 
-> Use fastevals to compare gpt-5.6-luna at reasoning high against gpt-5.6-sol
-> at low on "Summarize this contract in 5 bullets" — which one is faster and
-> cheaper on this task?
+> Use fastevals with models "luna@high|sol@low" on "Summarize this contract
+> in 5 bullets" — which one is faster and cheaper on this task?
 
 > List my registered models, then evaluate cases.jsonl on terra and report
 > the pass rate per effort level.
@@ -116,6 +115,29 @@ output_cost_usd_per_mtok = 6.0
 Providers are validated against the registry; unknown names fail fast with a
 helpful message. API keys are read from environment variables only — never
 from the registry, never logged, and scrubbed from error messages.
+
+### Cherry-pick exactly what to compare
+
+`--models` narrows the matrix without touching any registry file — substring
+match on model name/id, with an optional `@efforts` filter (selectors join
+with `|`, effort lists with `,`):
+
+```bash
+fastevals --list-models                       # discover ids first
+
+fastevals --models "luna@high" ...            # one cell: luna at high
+fastevals --models "luna@high|sol@low" ...    # cross-model comparison
+fastevals --models "terra" ...                # every registered terra effort
+```
+
+The same selector syntax is available everywhere:
+
+- **CLI:** `-m/--models`
+- **MCP:** the `run_evaluation` tool takes a `models` argument, so agents can answer "is luna@high faster and cheaper than sol@low?" in one call
+- **Python:** `RunConfig(prompt=..., models={"luna@high", "sol@low"})`
+
+Unknown selectors fail with the list of available ids instead of silently
+running nothing.
 
 ### Structured output
 

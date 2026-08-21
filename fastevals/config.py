@@ -49,6 +49,7 @@ class RunConfig:
 
     prompt: str
     providers: frozenset[str] = frozenset({ALL_PROVIDERS})
+    models: frozenset[str] | None = None
     file: str | None = None
     image: str | None = None
     structured_output: dict[str, Any] | None = None

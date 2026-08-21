@@ -21,6 +21,16 @@ def test_parser_defaults_to_all_providers():
     assert args.providers == {"all"}
 
 
+def test_parser_accepts_model_selectors():
+    args = build_parser().parse_args(["--prompt", "x", "--models", "luna@none,high|terra@low"])
+    assert args.models == {"luna@none,high", "terra@low"}
+
+
+def test_parser_rejects_empty_models_value():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--prompt", "x", "--models", "|"])
+
+
 def test_parser_no_longer_accepts_pr_short_flag():
     with pytest.raises(SystemExit):
         build_parser().parse_args(["-pr", "openai"])
@@ -110,6 +120,29 @@ def test_structured_run_end_to_end(tmp_path, capsys, offline_openai, fake_llm):
     payload = json.loads(capsys.readouterr().out)
     outputs = [row["output"] for row in payload["results"]]
     assert {"name": "Ada"} in outputs
+
+
+def test_run_end_to_end_with_model_selector(tmp_path, capsys, offline_openai, fake_llm):
+    calls = fake_llm(text="answer text")
+    exit_code = main(
+        [
+            "--prompt",
+            "hi there",
+            "--providers",
+            "openai",
+            "--models",
+            "gpt-test@low",
+            *offline_openai,
+            "--out",
+            str(tmp_path),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert len(payload["results"]) == 1
+    assert payload["results"][0]["reasoning_effort"] == "low"
+    assert len(calls) == 1
 
 
 def test_failed_run_returns_exit_code_one(tmp_path, capsys):

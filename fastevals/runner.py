@@ -37,7 +37,7 @@ async def run(config: RunConfig) -> list[RunResult]:
     if config.registry and not Path(config.registry).exists():
         raise ConfigError(f"Model registry not found: {config.registry}")
     entries = load_registry(Path(config.registry) if config.registry else default_registry_path())
-    specs = select_specs(entries, config.requested_providers())
+    specs = select_specs(entries, config.requested_providers(), selectors=config.models)
     cases = _resolve_cases(config)
     semaphore = asyncio.Semaphore(config.max_concurrency)
 

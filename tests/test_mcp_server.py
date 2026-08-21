@@ -59,6 +59,25 @@ async def test_run_evaluation_structured_output(tmp_path: Path, fake_llm, api_ke
 
 
 @pytest.mark.asyncio
+async def test_run_evaluation_with_model_selectors(tmp_path: Path, fake_llm, api_key, openai_registry):
+    calls = fake_llm(text="hi")
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {
+            "prompt": "hi",
+            "providers": "openai",
+            "registry": str(openai_registry),
+            "models": "gpt-test@low",
+            "out": str(tmp_path),
+        },
+    )
+    payload = parse(result)
+    assert payload["ok"] is True
+    assert [row["reasoning_effort"] for row in payload["results"]] == ["low"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
 async def test_run_evaluation_reports_config_errors(tmp_path: Path):
     result = await build_server().call_tool(
         "run_evaluation",
