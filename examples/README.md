@@ -1,53 +1,29 @@
 # Examples
 
-These examples use the current `fasteval` CLI and the model registry in
-`config/models.toml`.
+Runnable examples for the current CLI. All of them work with the mock
+provider without any API key — replace `mock` with `openai` (after copying
+`.env.example` to `.env`) to spend real credits.
 
-Before running them, activate the project environment and configure a real
-API key:
+| Example | Command | Shows |
+|---|---|---|
+| [01_simple_prompt](01_simple_prompt/01_simple_prompt.sh) | basic prompt, all reasoning efforts | matrix runs, JSON + HTML reports |
+| [02_structured_output](02_structured_output.sh) | compact schema → JSON Schema | schema validation of responses |
+| [03_dataset_evaluation](03_dataset_evaluation) | `cases.jsonl` + `--nruns` | datasets, evaluators, aggregates |
+| [04_mcp_server](04_mcp_server.md) | `fasteval-mcp` | connecting fasteval to Claude |
+
+## Zero-credit smoke run
 
 ```bash
-source .venv/bin/activate
-cp .env.example .env
+fasteval --prompt "Hello from fasteval" --providers mock --out runs/demo
 ```
 
-## Basic comparison
-
-Runs the prompt for every configured reasoning effort of the selected provider
-and writes JSON and HTML reports to `runs/basic/`:
+## Real runs
 
 ```bash
-fasteval \
-  --prompt "Explain why evaluation matters for an LLM application in three bullet points." \
-  --providers openai \
-  --out runs/basic
-```
-
-## Structured output
-
-Extracts a predictable object using the compact schema syntax:
-
-```bash
-fasteval \
-  --prompt "Extract the company name and total amount from this invoice." \
-  --file invoice.pdf \
-  --structured-output 'company:str("Company name"),total:float("Invoice total")' \
-  --providers openai \
-  --out runs/invoice
-```
-
-## Image analysis
-
-Pass an image with `--image` and describe the expected fields:
-
-```bash
-fasteval \
-  --prompt "Return the bounding box of the main object." \
-  --image screenshot.png \
-  --structured-output 'x:int,y:int,width:int,height:int' \
-  --providers openai \
-  --out runs/image
+cp .env.example .env    # then fill in your key
+fasteval --prompt "Explain evaluation in three bullets" --providers openai --out runs
 ```
 
 The configured model is `gpt-5.6-luna`; its `none` and `low` reasoning runs
-are expanded automatically from `config/models.toml`.
+are expanded automatically from `config/models.toml`. Pricing in the registry
+is USD per 1M tokens — keep it current for honest cost reports.
