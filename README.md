@@ -13,7 +13,8 @@ MCP client can run evaluations as a native tool: your agent decides *what*
 to test, fastevals answers *which model does it best*.
 
 [![CI](https://github.com/semenovdv/fastevals/actions/workflows/ci.yml/badge.svg)](https://github.com/semenovdv/fastevals/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+[![PyPI](https://img.shields.io/pypi/v/fastevals)](https://pypi.org/project/fastevals/)
+![Python](https://img.shields.io/pypi/pyversions/fastevals)
 ![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![mypy](https://img.shields.io/badge/mypy-strict-blue)
@@ -69,9 +70,15 @@ can also drive evaluations through plain shell execution without MCP.
 ## Install
 
 ```bash
-python3 -m pip install 'fastevals[native]'    # from PyPI once released
-# or from source:
-git clone https://github.com/semenovdv/fastevals && python3 -m pip install -e '.[native]'
+python3 -m pip install 'fastevals[native]'      # runner + LiteLLM providers
+python3 -m pip install 'fastevals[mcp,native]'  # + MCP server for Claude
+```
+
+Or from source:
+
+```bash
+git clone https://github.com/semenovdv/fastevals
+cd fastevals && python3 -m pip install -e '.[native]'
 ```
 
 ## CLI quick start
