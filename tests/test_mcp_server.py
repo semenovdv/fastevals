@@ -1,0 +1,90 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from fasteval.mcp_server import build_server
+
+
+def parse(result):
+    assert result.is_error is False, result.content
+    return json.loads(result.content[0].text)
+
+
+@pytest.mark.asyncio
+async def test_server_exposes_documented_tools():
+    tools = await build_server().list_tools()
+    by_name = {tool.name for tool in tools}
+    assert {"run_evaluation", "list_models", "get_run"} <= by_name
+    assert all(tool.description for tool in tools)
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_with_mock_provider(tmp_path: Path):
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {"prompt": "hello mcp", "providers": "mock", "out": str(tmp_path)},
+    )
+    payload = parse(result)
+    assert payload["ok"] is True
+    json_path = Path(payload["json_path"])
+    html_path = Path(payload["html_path"])
+    assert json_path.exists() and html_path.exists()
+    saved = json.loads(json_path.read_text())
+    assert saved["results"][0]["output"] == "[demo] hello mcp"
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_structured_output(tmp_path: Path):
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {
+            "prompt": "extract name",
+            "providers": "mock",
+            "structured_output": 'name:str("A name")',
+            "out": str(tmp_path),
+        },
+    )
+    payload = parse(result)
+    assert payload["results"][0]["output"] == {"name": "A name"}
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_reports_config_errors(tmp_path: Path):
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {"prompt": "", "providers": "mock", "dataset": str(tmp_path / "missing.jsonl")},
+    )
+    payload = parse(result)
+    assert payload["ok"] is False
+    assert "not found" in payload["error"]
+
+
+@pytest.mark.asyncio
+async def test_list_models_reads_committed_registry():
+    result = await build_server().call_tool("list_models", {})
+    payload = parse(result)
+    ids = [model["id"] for model in payload["models"]]
+    assert any(model_id.startswith("openai:") for model_id in ids)
+    assert set(payload["supported_providers"]) == {"openai", "gemini", "openrouter", "mock"}
+
+
+@pytest.mark.asyncio
+async def test_get_run_summarizes_saved_run(tmp_path: Path):
+    server = build_server()
+    run_result = await server.call_tool(
+        "run_evaluation",
+        {"prompt": "hi", "providers": "mock", "out": str(tmp_path)},
+    )
+    json_path = parse(run_result)["json_path"]
+    summary = parse(await server.call_tool("get_run", {"json_path": json_path}))
+    assert summary["runs"] == 1
+    assert summary["errors"] == 0
+    assert summary["html_report"].endswith("report.html")
+
+
+@pytest.mark.asyncio
+async def test_get_run_missing_file():
+    result = await build_server().call_tool("get_run", {"json_path": "/nope/run.json"})
+    payload = parse(result)
+    assert payload["ok"] is False

@@ -1,5 +1,7 @@
 """Standalone single-file HTML report generation."""
 
+import csv
+import io
 import json
 import uuid
 from dataclasses import asdict
@@ -43,6 +45,14 @@ def _status_badge(row: RunResult) -> tuple[str, str]:
     return "ok", "OK"
 
 
+def _pass_badge(row: RunResult) -> str:
+    if not row.evaluation or row.evaluation.get("passed") is None:
+        return "<span class='muted'>—</span>"
+    if row.evaluation["passed"]:
+        return "<span class='badge ok'>Pass</span>"
+    return "<span class='badge error'>Fail</span>"
+
+
 def _output_body(row: RunResult) -> str:
     if row.error:
         return _escape(str(row.error))
@@ -52,8 +62,11 @@ def _output_body(row: RunResult) -> str:
 
 
 def _render_config_items(config: RunConfig) -> str:
+    muted_cell = "<span class='muted'>—</span>"
     items = [
-        ("Prompt", config.prompt),
+        ("Prompt", config.prompt or None),
+        ("Dataset", config.dataset),
+        ("Runs per case", str(config.nruns) if config.nruns > 1 else None),
         ("File", config.file),
         ("Image", config.image),
         (
@@ -61,7 +74,6 @@ def _render_config_items(config: RunConfig) -> str:
             json.dumps(config.structured_output, ensure_ascii=False, indent=2) if config.structured_output else None,
         ),
     ]
-    muted_cell = "<span class='muted'>—</span>"
     return "".join(
         f"<div class='config-item'><span class='config-key'>{_escape(label)}</span>"
         f"<div class='config-value'>{_escape(str(value)) if value else muted_cell}</div></div>"
@@ -70,20 +82,31 @@ def _render_config_items(config: RunConfig) -> str:
 
 
 def _render_summary_cards(results: list[RunResult]) -> str:
-    ok_count = sum(1 for row in results if row.ok)
+    ok_rows = [row for row in results if row.ok]
     total_cost = sum(row.total_cost_usd or 0 for row in results)
-    latencies = [row.latency_ms for row in results if row.latency_ms is not None and row.ok]
+    latencies = [row.latency_ms for row in ok_rows if row.latency_ms is not None]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
     total_tokens = sum(
         (row.input_tokens or 0) + (row.output_tokens or 0) + (row.reasoning_tokens or 0) for row in results
     )
     cards = [
         ("Models", str(len(results)), "Runs in this matrix"),
-        ("Success", f"{ok_count}/{len(results)}", "Completed without error"),
+        ("Success", f"{len(ok_rows)}/{len(results)}", "Completed without error"),
         ("Total cost", _format_usd(total_cost), "Sum across all runs"),
         ("Avg latency", _format_number(avg_latency, " ms"), "Mean end-to-end time"),
         ("Total tokens", _format_number(total_tokens), "Input + output + reasoning"),
     ]
+    if len(ok_rows) >= 2:
+        fastest = min(ok_rows, key=lambda row: row.latency_ms if row.latency_ms is not None else float("inf"))
+        priced = [row for row in ok_rows if row.total_cost_usd is not None]
+        quickest = max(ok_rows, key=lambda row: row.tokens_per_second or 0)
+        cards += [
+            ("Fastest", _result_label(fastest), _format_number(fastest.latency_ms, " ms")),
+            ("Top throughput", _result_label(quickest), _format_number(quickest.tokens_per_second, " tok/s")),
+        ]
+        if priced:
+            cheapest = min(priced, key=lambda row: row.total_cost_usd or float("inf"))
+            cards.append(("Cheapest", _result_label(cheapest), _format_usd(cheapest.total_cost_usd)))
     return "".join(
         f"<div class='card stat-card'><div class='stat-label'>{_escape(label)}</div>"
         f"<div class='stat-value'>{_escape(value)}</div>"
@@ -92,35 +115,105 @@ def _render_summary_cards(results: list[RunResult]) -> str:
     )
 
 
-def _render_comparison_table(results: list[RunResult]) -> str:
-    rows = []
+def _model_aggregates(results: list[RunResult]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[RunResult]] = {}
     for row in results:
-        status_class, status_text = _status_badge(row)
+        grouped.setdefault(_result_label(row), []).append(row)
+    aggregates = []
+    for label, rows in sorted(grouped.items()):
+        ok_rows = [row for row in rows if row.ok]
+        latencies = [row.latency_ms for row in ok_rows if row.latency_ms is not None]
+        scored = [
+            row.evaluation["passed"] for row in rows if row.evaluation and row.evaluation.get("passed") is not None
+        ]
+        aggregates.append(
+            {
+                "label": label,
+                "runs": len(rows),
+                "success_rate": len(ok_rows) / len(rows),
+                "pass_rate": (sum(1 for passed in scored if passed) / len(scored)) if scored else None,
+                "avg_latency_ms": (sum(latencies) / len(latencies)) if latencies else None,
+                "total_cost_usd": sum(row.total_cost_usd or 0 for row in rows),
+            }
+        )
+    return aggregates
+
+
+def _render_aggregate_table(results: list[RunResult]) -> str:
+    rows = []
+    for aggregate in _model_aggregates(results):
+        pass_rate = aggregate["pass_rate"]
         rows.append(
             "<tr>"
-            f"<td><span class='badge {status_class}'>{status_text}</span></td>"
-            f"<td>{_escape(row.provider)}</td>"
-            f"<td>{_escape(row.model)}</td>"
-            f"<td>{_escape(row.reasoning_effort or 'off')}</td>"
-            f"<td>{_format_number(row.latency_ms, ' ms')}</td>"
-            f"<td>{_format_number(row.time_to_first_token_ms, ' ms')}</td>"
-            f"<td>{_format_number(row.tokens_per_second, ' t/s')}</td>"
-            f"<td>{_format_number(row.input_tokens)}</td>"
-            f"<td>{_format_number(row.output_tokens)}</td>"
-            f"<td>{_format_number(row.reasoning_tokens)}</td>"
-            f"<td>{_format_number(row.cached_tokens)}</td>"
-            f"<td>{_format_usd(row.total_cost_usd)}</td>"
-            f"<td>{_escape(row.finish_reason or '—')}</td>"
+            f"<td>{_escape(aggregate['label'])}</td>"
+            f"<td>{aggregate['runs']}</td>"
+            f"<td>{aggregate['success_rate'] * 100:.0f}%</td>"
+            f"<td>{f'{pass_rate * 100:.0f}%' if pass_rate is not None else '—'}</td>"
+            f"<td>{_format_number(aggregate['avg_latency_ms'], ' ms')}</td>"
+            f"<td>{_format_usd(aggregate['total_cost_usd'])}</td>"
             "</tr>"
         )
     return (
         "<table class='comparison-table'>"
-        "<thead><tr>"
-        "<th>Status</th><th>Provider</th><th>Model</th><th>Reasoning</th>"
-        "<th>Latency</th><th>TTFT</th><th>Throughput</th>"
-        "<th>In</th><th>Out</th><th>Reason</th><th>Cached</th>"
-        "<th>Cost</th><th>Finish</th>"
-        "</tr></thead>"
+        "<thead><tr><th>Model</th><th>Runs</th><th>Success</th>"
+        "<th>Pass rate</th><th>Avg latency</th><th>Total cost</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _render_comparison_table(results: list[RunResult], show_case: bool, show_eval: bool) -> str:
+    rows = []
+    for row in results:
+        status_class, status_text = _status_badge(row)
+        cells = [f"<td><span class='badge {status_class}'>{status_text}</span></td>"]
+        if show_case:
+            cells.append(f"<td>{_escape(row.case_id)}</td><td>{row.attempt}</td>")
+        cells += [
+            f"<td>{_escape(row.provider)}</td>",
+            f"<td>{_escape(row.model)}</td>",
+            f"<td>{_escape(row.reasoning_effort or 'off')}</td>",
+            f"<td>{_format_number(row.latency_ms, ' ms')}</td>",
+            f"<td>{_format_number(row.time_to_first_token_ms, ' ms')}</td>",
+            f"<td>{_format_number(row.tokens_per_second, ' t/s')}</td>",
+            f"<td>{_format_number(row.input_tokens)}</td>",
+            f"<td>{_format_number(row.output_tokens)}</td>",
+            f"<td>{_format_number(row.reasoning_tokens)}</td>",
+            f"<td>{_format_number(row.cached_tokens)}</td>",
+            f"<td>{_format_usd(row.total_cost_usd)}</td>",
+            f"<td>{_escape(row.finish_reason or '—')}</td>",
+        ]
+        if show_eval:
+            cells.append(f"<td>{_pass_badge(row)}</td>")
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+    head_cells = ["Status"]
+    if show_case:
+        head_cells += ["Case", "Attempt"]
+    head_cells += [
+        "Provider",
+        "Model",
+        "Reasoning",
+        "Latency",
+        "TTFT",
+        "Throughput",
+        "In",
+        "Out",
+        "Reason",
+        "Cached",
+        "Cost",
+        "Finish",
+    ]
+    if show_eval:
+        head_cells.append("Eval")
+    head = "".join(f"<th class='sortable'>{label}</th>" for label in head_cells)
+    return (
+        "<div class='table-tools'>"
+        "<input id='table-filter' type='search' placeholder='Filter rows…'>"
+        "<span class='table-tools-spacer'></span>"
+        "<button id='export-csv' type='button'>Export CSV</button>"
+        "<button id='export-md' type='button'>Export Markdown</button>"
+        "</div>"
+        "<table class='comparison-table' id='comparison-table'>"
+        f"<thead><tr>{head}</tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table>"
     )
 
@@ -131,7 +224,6 @@ def _render_result_cards(results: list[RunResult]) -> str:
         status_class, status_text = _status_badge(row)
         metrics = [
             ("Latency", _format_number(row.latency_ms, " ms")),
-            ("TTFT", _format_number(row.time_to_first_token_ms, " ms")),
             ("Throughput", _format_number(row.tokens_per_second, " tok/s")),
             ("Input tokens", _format_number(row.input_tokens)),
             ("Output tokens", _format_number(row.output_tokens)),
@@ -150,14 +242,20 @@ def _render_result_cards(results: list[RunResult]) -> str:
             f"<span class='metric-value'>{_escape(str(value))}</span></div>"
             for label, value in metrics
         )
+        eval_note = ""
+        if row.evaluation and row.evaluation.get("detail"):
+            eval_note = f"<p class='eval-detail'>{_escape(str(row.evaluation['detail']))}</p>"
+        meta_line = _escape(f"{row.case_id} · attempt {row.attempt}")
+        reasoning_label = _escape(row.reasoning_effort or "off")
         cards.append(
             f"<article class='result-card {status_class}'>"
             f"<div class='result-head'>"
             f"<div><h2>#{index} {_escape(row.provider)} / {_escape(row.model)}</h2>"
-            f"<p class='meta'>Reasoning effort: {_escape(row.reasoning_effort or 'off')}</p></div>"
+            f"<p class='meta'>{meta_line} · reasoning {reasoning_label}</p></div>"
             f"<span class='badge {status_class}'>{status_text}</span>"
             f"</div>"
             f"<div class='metric-grid'>{metric_grid}</div>"
+            f"{eval_note}"
             f"<pre class='output-block'>{_output_body(row)}</pre>"
             f"</article>"
         )
@@ -183,11 +281,89 @@ def _chart_payload(results: list[RunResult]) -> dict[str, Any]:
     }
 
 
+def _table_tools_script() -> str:
+    return """
+    const table = document.getElementById("comparison-table");
+    if (table) {
+      const tbody = table.tBodies[0];
+      const filterInput = document.getElementById("table-filter");
+      filterInput.addEventListener("input", () => {
+        const query = filterInput.value.toLowerCase();
+        for (const row of tbody.rows) {
+          row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        }
+      });
+      table.tHead.querySelectorAll("th").forEach((th, index) => {
+        let ascending = true;
+        th.addEventListener("click", () => {
+          const parse = text => {
+            const num = parseFloat(text.replace(/[^0-9.\\-eE]/g, ""));
+            return Number.isNaN(num) ? null : num;
+          };
+          const rows = [...tbody.rows].filter(row => row.style.display !== "none");
+          rows.sort((a, b) => {
+            const av = parse(a.cells[index].textContent);
+            const bv = parse(b.cells[index].textContent);
+            if (av === null && bv === null) return a.cells[index].textContent.localeCompare(b.cells[index].textContent);
+            if (av === null) return 1;
+            if (bv === null) return -1;
+            return ascending ? av - bv : bv - av;
+          });
+          rows.forEach(row => tbody.appendChild(row));
+          table.tHead.querySelectorAll("th").forEach(other => other.classList.remove("sorted-asc", "sorted-desc"));
+          th.classList.add(ascending ? "sorted-asc" : "sorted-desc");
+          ascending = !ascending;
+        });
+      });
+      const exportRows = () => [...table.tHead.rows[0].cells].map(cell => cell.textContent);
+      const exportData = () => [...tbody.rows]
+        .filter(row => row.style.display !== "none")
+        .map(row => [...row.cells].map(cell => cell.textContent.trim()));
+      document.getElementById("export-csv").addEventListener("click", () => {
+        const lines = [exportRows(), ...exportData()].map(cells =>
+          cells.map(cell => '"' + cell.replace(/"/g, '""') + '"').join(",")
+        );
+        download("fasteval-report.csv", lines.join("\\n"), "text/csv");
+      });
+      document.getElementById("export-md").addEventListener("click", () => {
+        const escapePipe = text => text.replace(/\\|/g, "\\\\|");
+        const header = exportRows();
+        const rows = exportData().map(cells => cells.map(escapePipe));
+        const lines = [
+          "| " + header.map(escapePipe).join(" | ") + " |",
+          "| " + header.map(() => "---").join(" | ") + " |",
+          ...rows.map(cells => "| " + cells.join(" | ") + " |"),
+        ];
+        download("fasteval-report.md", lines.join("\\n"), "text/markdown");
+      });
+      function download(filename, content, mime) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([content], { type: mime }));
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+    }
+    """
+
+
 def render_html_report(config: RunConfig, results: list[RunResult], created_at: str) -> str:
+    from . import __version__
+
     chart_data = json.dumps(_chart_payload(results), ensure_ascii=False)
     ok_count = sum(1 for row in results if row.ok)
     overall_status = "ok" if ok_count == len(results) else ("partial" if ok_count else "error")
     overall_label = {"ok": "All passed", "partial": "Partial success", "error": "All failed"}[overall_status]
+    show_case = len({row.case_id for row in results}) > 1 or config.nruns > 1
+    show_eval = any(row.evaluation and row.evaluation.get("passed") is not None for row in results)
+    show_aggregates = show_case
+    aggregate_section = (
+        f"<section class='card' style='margin-bottom:20px'>"
+        f"<h2 class='section-title'>Model aggregates</h2>"
+        f"<div class='table-wrap'>{_render_aggregate_table(results)}</div></section>"
+        if show_aggregates
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -277,9 +453,10 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       letter-spacing: 0.04em;
     }}
     .stat-card .stat-value {{
-      font-size: 28px;
+      font-size: 20px;
       font-weight: 700;
       margin: 8px 0 4px;
+      word-break: break-word;
     }}
     .stat-card .stat-hint {{
       color: var(--muted);
@@ -312,6 +489,31 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       padding: 12px 14px;
     }}
     .muted {{ color: var(--muted); }}
+    .table-tools {{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }}
+    .table-tools-spacer {{ flex: 1; }}
+    .table-tools input {{
+      flex: 0 1 260px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font: inherit;
+    }}
+    .table-tools button {{
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }}
+    .table-tools button:hover {{ background: #eef2f8; }}
     .comparison-table {{
       width: 100%;
       border-collapse: collapse;
@@ -329,6 +531,10 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }}
+    .comparison-table th.sortable {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+    .comparison-table th.sortable:hover {{ color: var(--accent); }}
+    .comparison-table th.sorted-asc::after {{ content: " ▲"; }}
+    .comparison-table th.sorted-desc::after {{ content: " ▼"; }}
     .comparison-table tbody tr:hover {{
       background: #f8fafc;
     }}
@@ -373,6 +579,11 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       font-weight: 600;
       word-break: break-word;
     }}
+    .eval-detail {{
+      color: var(--error);
+      margin: 0 0 12px;
+      font-size: 13px;
+    }}
     .output-block {{
       white-space: pre-wrap;
       margin: 0;
@@ -394,7 +605,7 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       <div class="hero-top">
         <div>
           <h1>fasteval report</h1>
-          <p class="meta">{len(results)} model run(s) · {_escape(created_at)}</p>
+          <p class="meta">{len(results)} model run(s) · fasteval v{__version__} · {_escape(created_at)}</p>
         </div>
         <span class="badge {overall_status}">{overall_label}</span>
       </div>
@@ -418,8 +629,10 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
 
     <section class="card" style="margin-bottom:20px">
       <h2 class="section-title">Comparison table</h2>
-      <div class="table-wrap">{_render_comparison_table(results)}</div>
+      <div class="table-wrap">{_render_comparison_table(results, show_case, show_eval)}</div>
     </section>
+
+    {aggregate_section}
 
     <section>
       <h2 class="section-title">Detailed results</h2>
@@ -513,9 +726,41 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
         }},
       }},
     }});
+
+    {_table_tools_script()}
   </script>
 </body>
 </html>"""
+
+
+def _dataset_payload(config: RunConfig) -> list[dict[str, Any]] | None:
+    if not config.dataset:
+        return None
+    from .dataset import load_dataset
+
+    return [case.as_dict() for case in load_dataset(config.dataset)]
+
+
+def _markdown_export(results: list[RunResult]) -> str:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter="|")
+    header = ["status", "case", "attempt", "provider", "model", "reasoning", "latency_ms", "total_cost_usd", "eval"]
+    writer.writerow(header)
+    for row in results:
+        writer.writerow(
+            [
+                "error" if row.error else "ok",
+                row.case_id,
+                row.attempt,
+                row.provider,
+                row.model,
+                row.reasoning_effort,
+                row.latency_ms,
+                row.total_cost_usd,
+                (row.evaluation or {}).get("passed"),
+            ]
+        )
+    return buffer.getvalue()
 
 
 def save_report(
@@ -525,17 +770,24 @@ def save_report(
     include_html: bool = True,
 ) -> tuple[Path, Path | None]:
     """Persist ``run.json`` and the standalone HTML report for one run."""
+    from . import __version__
+
     run_id = f"{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
     run_dir = Path(output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     created_at = datetime.now(UTC).isoformat()
     payload = {
-        "prompt": config.prompt,
+        "fasteval_version": __version__,
+        "prompt": config.prompt or None,
+        "dataset": config.dataset,
+        "cases": _dataset_payload(config),
+        "nruns": config.nruns,
         "file": config.file,
         "image": config.image,
         "structured_output": config.structured_output,
         "created_at": created_at,
         "results": [asdict(row) for row in results],
+        "markdown_summary": _markdown_export(results),
     }
     json_path = run_dir / "run.json"
     html_path = run_dir / "report.html"

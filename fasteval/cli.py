@@ -58,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 """,
     )
-    parser.add_argument("-p", "--prompt", required=True, help="Task prompt")
+    parser.add_argument("-p", "--prompt", help="Task prompt (omit when --dataset provides the prompts)")
     parser.add_argument("-s", "--structured-output", help="Structured output compact schema for the response")
     parser.add_argument("-f", "--file", type=Path, help="Input document (sent to the model as an attachment)")
     parser.add_argument("-i", "--image", type=Path, help="Input image")
@@ -73,6 +73,15 @@ def build_parser() -> argparse.ArgumentParser:
         "-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)"
     )
     parser.add_argument(
+        "-d",
+        "--dataset",
+        type=Path,
+        help="JSONL or CSV file with evaluation cases (columns: prompt, expected, evaluator, pattern)",
+    )
+    parser.add_argument(
+        "-n", "--nruns", type=int, default=1, help="Repeat every case this many times for consistency checks"
+    )
+    parser.add_argument(
         "-c", "--concurrency", type=int, default=DEFAULT_MAX_CONCURRENCY, help="Max parallel model calls"
     )
     parser.add_argument("-o", "--out", type=Path, default=Path("runs"), help="Output directory")
@@ -85,11 +94,13 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = RunConfig(
-            prompt=args.prompt,
+            prompt=args.prompt or "",
             providers=args.providers,
             file=str(args.file) if args.file else None,
             image=str(args.image) if args.image else None,
             structured_output=shorthand_to_schema(args.structured_output) if args.structured_output else None,
+            dataset=str(args.dataset) if args.dataset else None,
+            nruns=max(1, args.nruns),
             registry=str(args.registry) if args.registry else None,
             max_concurrency=max(1, args.concurrency),
             out=str(args.out),

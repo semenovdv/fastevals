@@ -213,3 +213,40 @@ async def test_missing_litellm_yields_clear_error(tmp_path, monkeypatch):
 def test_run_config_rejects_blank_prompt():
     with pytest.raises(ConfigError, match="Prompt"):
         RunConfig(prompt="   ")
+
+
+@pytest.mark.asyncio
+async def test_dataset_run_with_evaluator_and_nruns(tmp_path):
+    registry = write_registry(tmp_path, MOCK_REGISTRY)
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text(
+        "\n".join(
+            [
+                json.dumps({"id": "greet", "prompt": "hi", "expected": "alpha says hi", "evaluator": "exact_match"}),
+                json.dumps({"id": "miss", "prompt": "bye", "evaluator": "contains", "pattern": "zzz"}),
+            ]
+        )
+    )
+    config = RunConfig(
+        prompt="",
+        providers=frozenset({"mock"}),
+        registry=registry,
+        dataset=str(dataset),
+        nruns=2,
+    )
+    results = await run(config)
+    assert len(results) == 8  # 2 cases x 2 attempts x (off|low) mock efforts
+    greet = [row for row in results if row.case_id == "greet"]
+    assert all(row.evaluation["passed"] is True for row in greet)
+    assert sorted(row.attempt for row in greet) == [1, 1, 2, 2]
+    miss = [row for row in results if row.case_id == "miss"]
+    assert all(row.evaluation["passed"] is False for row in miss)
+
+
+@pytest.mark.asyncio
+async def test_dataset_with_unknown_evaluator_raises(tmp_path):
+    registry = write_registry(tmp_path, MOCK_REGISTRY)
+    dataset = tmp_path / "cases.jsonl"
+    dataset.write_text(json.dumps({"prompt": "hi", "evaluator": "magic"}))
+    with pytest.raises(ConfigError, match="unknown evaluator"):
+        await run(RunConfig(prompt="", providers=frozenset({"mock"}), registry=registry, dataset=str(dataset)))

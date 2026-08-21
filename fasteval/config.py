@@ -20,6 +20,7 @@ SUPPORTED_PROVIDERS = ("openai", "gemini", "openrouter", "mock")
 DEFAULT_TIMEOUT_S = 120
 DEFAULT_MAX_CONCURRENCY = 4
 DEFAULT_OUT_DIR = "runs"
+MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 _KNOWN_SPEC_KEYS = frozenset(
     {
@@ -50,16 +51,20 @@ class RunConfig:
     file: str | None = None
     image: str | None = None
     structured_output: dict[str, Any] | None = None
+    dataset: str | None = None
+    nruns: int = 1
     registry: str | None = None
     max_concurrency: int = DEFAULT_MAX_CONCURRENCY
     out: str = DEFAULT_OUT_DIR
 
     def __post_init__(self) -> None:
-        if not self.prompt or not self.prompt.strip():
-            raise ConfigError("Prompt must not be empty")
+        if not self.prompt.strip() and not self.dataset:
+            raise ConfigError("Prompt must not be empty when no dataset is given")
         if self.max_concurrency < 1:
             raise ConfigError(f"max_concurrency must be >= 1, got {self.max_concurrency}")
-        for label, path in (("file", self.file), ("image", self.image)):
+        if self.nruns < 1:
+            raise ConfigError(f"nruns must be >= 1, got {self.nruns}")
+        for label, path in (("file", self.file), ("image", self.image), ("dataset", self.dataset)):
             if path and not Path(path).exists():
                 raise ConfigError(f"{label} not found: {path}")
         unknown = self.requested_providers() - set(SUPPORTED_PROVIDERS) - {ALL_PROVIDERS}

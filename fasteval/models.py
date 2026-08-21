@@ -1,6 +1,6 @@
 """Core result models shared across the package."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 __all__ = ["ModelResponse", "RunResult"]
@@ -33,6 +33,10 @@ class RunResult:
     reasoning_effort: str
 
     output: Any
+
+    case_id: str = "case-001"
+    attempt: int = 1
+    evaluation: dict[str, Any] | None = field(default=None)
 
     time_to_first_token_ms: float | None = None
     latency_ms: float | None = None

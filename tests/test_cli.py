@@ -20,9 +20,12 @@ def test_parser_defaults_to_all_providers():
     assert args.providers == {"all"}
 
 
-def test_missing_prompt_exits_with_error():
-    with pytest.raises(SystemExit):
-        build_parser().parse_args([])
+def test_missing_prompt_and_dataset_returns_error(tmp_path, capsys):
+    exit_code = main(["--out", str(tmp_path)])
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert "Prompt" in payload["error"]
 
 
 def test_mock_run_end_to_end(tmp_path, capsys):

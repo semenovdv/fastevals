@@ -6,12 +6,12 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .config import ModelSpec
-from .exceptions import ProviderError
+from .config import MAX_ATTACHMENT_BYTES, ModelSpec
+from .exceptions import ConfigError, ProviderError
 from .models import ModelResponse
 from .structured import mocked_answer
 
-__all__ = ["call_model", "parse_response", "scrub_secrets"]
+__all__ = ["build_messages", "call_model", "parse_response", "scrub_secrets"]
 
 # LiteLLM needs an explicit routing prefix for these providers.
 PROVIDER_PREFIXES = {"openrouter": "openrouter/", "gemini": "gemini/"}
@@ -35,17 +35,42 @@ def scrub_secrets(message: str) -> str:
     return message
 
 
-def _image_part(path: str) -> dict[str, Any]:
-    mime = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    encoded = base64.b64encode(Path(path).read_bytes()).decode("ascii")
-    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}}
+def _base64_data(path: Path) -> str:
+    payload = path.read_bytes()
+    if len(payload) > MAX_ATTACHMENT_BYTES:
+        raise ConfigError(f"Attachment exceeds {MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB limit: {path}")
+    return base64.b64encode(payload).decode("ascii")
+
+
+def _attachment_part(path: str) -> dict[str, Any]:
+    """Encode one attachment for a multimodal message.
+
+    Images become ``image_url`` parts, PDFs become OpenAI-style ``file``
+    parts, and anything else is inlined as decoded UTF-8 text.
+    """
+    file_path = Path(path)
+    mime = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+    if mime.startswith("image/"):
+        return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{_base64_data(file_path)}"}}
+    if mime == "application/pdf":
+        return {
+            "type": "file",
+            "file": {"filename": file_path.name, "file_data": f"data:application/pdf;base64,{_base64_data(file_path)}"},
+        }
+    try:
+        text = file_path.read_text()
+    except UnicodeDecodeError as exc:
+        raise ConfigError(
+            f"Unsupported attachment type '{mime}' for {file_path} (images, PDFs and text files are supported)"
+        ) from exc
+    return {"type": "text", "text": f"--- Attached file: {file_path.name} ---\n{text}"}
 
 
 def build_messages(prompt: str, file_paths: list[str] | None) -> list[dict[str, Any]]:
     content: str | list[dict[str, Any]] = prompt
     if file_paths:
         content = [{"type": "text", "text": prompt}]
-        content.extend(_image_part(path) for path in file_paths)
+        content.extend(_attachment_part(path) for path in file_paths)
     return [{"role": "user", "content": content}]
 
 
