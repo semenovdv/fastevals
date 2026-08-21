@@ -51,8 +51,9 @@ Exposed tools:
 
 Example agent prompts that now just work:
 
-> Use fastevals with models "luna@high|sol@low" on "Summarize this contract
-> in 5 bullets" — which one is faster and cheaper on this task?
+> Use fastevals with models "openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low"
+> on "Summarize this contract in 5 bullets" — which one is faster and
+> cheaper on this task?
 
 > List my registered models, then evaluate cases.jsonl on terra and report
 > the pass rate per effort level.
@@ -118,26 +119,30 @@ from the registry, never logged, and scrubbed from error messages.
 
 ### Cherry-pick exactly what to compare
 
-`--models` narrows the matrix without touching any registry file — substring
-match on model name/id, with an optional `@efforts` filter (selectors join
-with `|`, effort lists with `,`):
+`--models` narrows the matrix without touching any registry file. Selectors
+use the **exact official model id** (the same string providers accept —
+`gpt-5.6-luna`, `meta-llama/llama-4`), optionally qualified by provider, with
+an `@efforts` filter. Selectors join with `|`, effort lists with `,`:
 
 ```bash
-fastevals --list-models                       # discover ids first
+fastevals --list-models                                  # discover exact ids
 
-fastevals --models "luna@high" ...            # one cell: luna at high
-fastevals --models "luna@high|sol@low" ...    # cross-model comparison
-fastevals --models "terra" ...                # every registered terra effort
+fastevals --models "gpt-5.6-luna@high" ...               # one cell
+fastevals --models "openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low" ...
+fastevals --models "gpt-5.6-terra" ...                   # terra, every effort
 ```
+
+Rules: the model part matches exactly (case-insensitive) against the
+registry model id — or the full `provider:model` entry id printed by
+`--list-models`, so you can paste it back verbatim; the `provider/` prefix
+must match exactly when present. Unknown selectors fail with the list of
+available ids instead of silently running nothing.
 
 The same selector syntax is available everywhere:
 
 - **CLI:** `-m/--models`
-- **MCP:** the `run_evaluation` tool takes a `models` argument, so agents can answer "is luna@high faster and cheaper than sol@low?" in one call
-- **Python:** `RunConfig(prompt=..., models={"luna@high", "sol@low"})`
-
-Unknown selectors fail with the list of available ids instead of silently
-running nothing.
+- **MCP:** the `run_evaluation` tool takes a `models` argument, so agents can answer "is gpt-5.6-luna@high faster and cheaper than gpt-5.6-sol@low?" in one call
+- **Python:** `RunConfig(prompt=..., models={"openai/gpt-5.6-luna@high", "openai/gpt-5.6-sol@low"})`
 
 ### Structured output
 
