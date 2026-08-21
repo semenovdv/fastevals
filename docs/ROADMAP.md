@@ -19,27 +19,47 @@ has already landed.
 
 ## Next
 
-### Streaming metrics
+Prioritized by impact: adoption first, then the features that turn fasteval
+from a comparison tool into an engineering tool.
 
-Real time-to-first-token via streamed completions, plus incremental
-throughput curves per run instead of a single end-to-end number.
+### P1 — Adoption
 
-### Smarter evaluation
+- **Publish to PyPI** via trusted publishing so `pip install fasteval` works.
+- **Codecov** integration with a live coverage badge.
+- **Demo GIF** in the README (mock provider, zero credits).
+- **Docs site** on GitHub Pages (mkdocs-material) with an API reference and a
+  rendered sample report.
 
-- Per-case assertions composed from multiple evaluators with weights.
-- Opt-in LLM-as-judge evaluator with a documented rubric prompt.
-- Statistical stability scores across `--nruns` attempts (not just raw repeats).
+### P2 — Engineering tool
 
-### Registry ergonomics
+- **Eval gates for CI** — store a baseline run, compare future runs against
+  it (`fasteval check --baseline`), and fail a PR when quality regresses or
+  cost grows beyond a threshold. The pytest moment for LLM evaluation.
+- **LLM-as-judge evaluator** — opt-in rubric-based scoring for open-ended
+  cases, clearly labeled as a subjective metric.
+- **Request caching** so iterating on a dataset does not re-pay identical
+  (prompt, model, params) calls.
+- **Retries with exponential backoff** for transient provider failures.
+- **Run budget** (`--max-cost`) as a stop-crane for expensive matrices.
 
-- `fasteval models add` helper that validates pricing fields interactively.
-- Optional live price sync for well-known providers, clearly labeled as
-  external data.
+### P3 — Metrics and scenarios
 
-### Reporting
+- **Streaming completions** for real time-to-first-token and incremental
+  throughput curves.
+- **Local models** via ollama/vLLM for free, private experimentation.
+- **System prompts and multi-turn cases** — real applications are dialogs.
+- **Prompt templating** with dataset variables for few-shot cases.
+- **Statistics across `--nruns`** — variance, confidence intervals,
+  significance between models.
+- **Run diffing** — compare two saved runs ("what did this prompt change
+  cost me?").
 
-- Diff view between two saved runs ("what did this prompt change cost me?").
-- Optional self-contained report (inline Chart.js) for fully offline sharing.
+### P4 — Ecosystem
+
+- Plugin discovery via entry points for custom evaluators and providers.
+- Run history in sqlite with quality-over-time charts.
+- Dependabot and CodeQL in CI.
+- Anthropic adapter; issue templates and GitHub Discussions.
 
 ## Non-goals
 
