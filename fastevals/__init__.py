@@ -7,7 +7,7 @@ from .exceptions import ConfigError, FastEvalError, ProviderError, StructuredOut
 from .models import ModelResponse, RunResult
 from .registry import load_registry
 from .report import save_report
-from .runner import run
+from .runner import run_evals
 from .tags import load_tags, remove_tag, resolve_tag, save_tag
 
 try:  # Single source of truth is the installed package metadata.
@@ -30,7 +30,7 @@ __all__ = [
     "load_tags",
     "remove_tag",
     "resolve_tag",
-    "run",
+    "run_evals",
     "save_report",
     "save_tag",
 ]

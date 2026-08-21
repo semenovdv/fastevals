@@ -6,6 +6,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the Python entry point `run()` is renamed to
+  `run_evals()` to read naturally alongside `save_report()` and avoid
+  shadowing builtins in user code. `from fastevals import run_evals`.
+
 ### Added
 
 - **Tags: named model suites as reusable presets.** `fastevals tag

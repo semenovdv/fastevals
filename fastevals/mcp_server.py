@@ -14,7 +14,7 @@ from .config import ALL_PROVIDERS, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
 from .registry import default_registry_path, describe_registry, load_registry, select_specs
 from .report import save_report
-from .runner import run
+from .runner import run_evals
 from .structured import shorthand_to_schema
 from .tags import load_tags, save_tag
 
@@ -82,7 +82,7 @@ async def run_evaluation(
             registry=registry,
             out=out,
         )
-        results = await run(config)
+        results = await run_evals(config)
         json_path, html_path = save_report(config, results, out)
     except FastEvalError as exc:
         return {"ok": False, "error": str(exc)}

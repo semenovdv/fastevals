@@ -13,7 +13,7 @@ from .config import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
 from .registry import default_registry_path, describe_registry, load_registry, select_specs
 from .report import save_report
-from .runner import run
+from .runner import run_evals
 from .structured import shorthand_to_schema
 from .tags import default_tags_path, load_tags, remove_tag, resolve_tag, save_tag
 
@@ -247,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
             max_concurrency=max(1, args.concurrency),
             out=str(args.out),
         )
-        results = asyncio.run(run(config))
+        results = asyncio.run(run_evals(config))
     except (FastEvalError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc), "results": []}, ensure_ascii=False))
         return 1
