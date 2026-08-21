@@ -121,27 +121,32 @@ from the registry, never logged, and scrubbed from error messages.
 
 `--models` narrows the matrix without touching any registry file. Selectors
 use the **exact official model id** (the same string providers accept —
-`gpt-5.6-luna`, `meta-llama/llama-4`), optionally qualified by provider, with
+`gpt-5.6-luna`, `meta-llama/llama-4`), always **qualified by provider**, with
 an `@efforts` filter. Selectors join with `|`, effort lists with `,`:
 
 ```bash
 fastevals --list-models                                  # discover exact ids
 
-fastevals --models "gpt-5.6-luna@high" ...               # one cell
+fastevals --models "openai/gpt-5.6-luna@high" ...        # one cell
 fastevals --models "openai/gpt-5.6-luna@high|openai/gpt-5.6-sol@low" ...
-fastevals --models "gpt-5.6-terra" ...                   # terra, every effort
+fastevals --models "openai/gpt-5.6-terra" ...            # terra, every effort
 ```
 
-Rules: the model part matches exactly (case-insensitive) against the
-registry model id — or the full `provider:model` entry id printed by
-`--list-models`, so you can paste it back verbatim; the `provider/` prefix
-must match exactly when present. Unknown selectors fail with the list of
-available ids instead of silently running nothing.
+Why is the provider mandatory? Because the same model string is frequently
+served by several providers — a bare `gpt-5.6-luna` could silently fan a paid
+run across ten of them. Instead of guessing (or asking interactive questions
+that break agents), fastevals fails and prints every matching entry id; pick
+yours and rerun.
+
+Matching rules: model id matches exactly (case-insensitive) against the
+registry model field — or the full `provider:model` entry id printed by
+`--list-models` can be pasted verbatim. Unknown selectors fail with the list
+of available ids instead of silently running nothing.
 
 The same selector syntax is available everywhere:
 
 - **CLI:** `-m/--models`
-- **MCP:** the `run_evaluation` tool takes a `models` argument, so agents can answer "is gpt-5.6-luna@high faster and cheaper than gpt-5.6-sol@low?" in one call
+- **MCP:** the `run_evaluation` tool takes a `models` argument, so agents can answer "is openai/gpt-5.6-luna@high faster and cheaper than openai/gpt-5.6-sol@low?" in one call
 - **Python:** `RunConfig(prompt=..., models={"openai/gpt-5.6-luna@high", "openai/gpt-5.6-sol@low"})`
 
 ### Structured output

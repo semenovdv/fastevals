@@ -48,13 +48,14 @@ def _expand_efforts(raw: dict[str, Any]) -> list[dict[str, Any]]:
 def parse_selectors(raw: Iterable[str]) -> list[tuple[str | None, str, set[str] | None]]:
     """Parse model selector tokens into ``(provider, model, efforts)`` triples.
 
-    Grammar: ``[provider/]model[@effort[,effort...]]``. ``model`` is the
-    exact official model id (e.g. ``gpt-5.6-luna``), matched
-    case-insensitively against the registry ``model`` field or the full
-    entry id (``openai:gpt-5.6-luna``) so ids from ``--list-models`` can be
-    pasted verbatim. The provider part, when given, matches exactly. The
-    optional effort list narrows rows after expansion. Selectors are
-    joined with ``|`` at the call site.
+    Grammar: ``provider/model[@effort[,effort...]]`` — the provider is
+    **required**, because the same model string is often served by many
+    providers and silently fanning out a paid run across all of them would
+    be a footgun. ``model`` is the exact official model id (e.g.
+    ``gpt-5.6-luna``); the verbatim registry entry id
+    (``openai:gpt-5.6-luna``) is accepted as well, so ids from
+    ``--list-models`` paste back unchanged. The effort list narrows rows
+    after expansion. Selectors are joined with ``|`` at the call site.
     """
     parsed: list[tuple[str | None, str, set[str] | None]] = []
     for token in raw:
@@ -62,17 +63,20 @@ def parse_selectors(raw: Iterable[str]) -> list[tuple[str | None, str, set[str] 
         if not token:
             continue
         head, sep, efforts_raw = token.partition("@")
-        provider: str | None = None
-        if "/" in head:
+        if ":" in head:  # verbatim entry id: provider:model
+            provider, _, model = head.partition(":")
+        elif "/" in head:  # canonical form: provider/model
             provider, _, model = head.partition("/")
-            provider = provider.strip().lower()
-            model = model.strip().lower()
-            if not provider or not model:
-                raise ConfigError(f"Invalid model selector '{token}': both provider and model are required around '/'")
-        else:
-            model = head.strip().lower()
-        if not model:
-            raise ConfigError(f"Invalid model selector '{token}': model part is empty")
+        else:  # bare name: provider omitted, resolved (and rejected) later
+            provider, model = None, head
+        model = model.strip().lower()
+        if not model or (provider is not None and not provider.strip()):
+            raise ConfigError(
+                f"Invalid model selector '{token}': provider/model required "
+                "(e.g. openai/gpt-5.6-luna@low) — bare names are ambiguous when "
+                "several providers serve the same model"
+            )
+        provider = provider.strip().lower() if provider is not None else None
         efforts: set[str] | None = None
         if sep:
             efforts = {item.strip().lower() for item in efforts_raw.split(",") if item.strip()}
@@ -106,6 +110,21 @@ def select_specs(
     selector_tokens = [token.strip() for token in selectors] if selectors else []
     selectors_parsed = parse_selectors(selector_tokens) if selector_tokens else []
     if selectors_parsed:
+        for token, (provider, model, _efforts) in zip(selector_tokens, selectors_parsed, strict=True):
+            if provider is not None:
+                continue
+            candidates = sorted(
+                {
+                    row["id"]
+                    for row in expanded
+                    if str(row.get("model", "")).lower() == model or row["id"].lower() == model
+                }
+            )
+            if candidates:
+                raise ConfigError(
+                    f"Selector '{token}' omits the provider. Matching entries: "
+                    f"{', '.join(candidates)}. Qualify as provider/model or paste an entry id."
+                )
         narrowed = [
             row
             for row in expanded
