@@ -7,31 +7,43 @@ from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from fasteval.runner import run, save_report
+    from fasteval.runner import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, run, save_report
     from fasteval.structured import shorthand_to_schema
 else:
-    from .runner import run, save_report
+    from .runner import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, run, save_report
     from .structured import shorthand_to_schema
 
 
+def _dotenv_candidates() -> list[Path]:
+    return [Path.cwd() / ".env", Path(__file__).resolve().parents[1] / ".env"]
+
+
 def _load_dotenv() -> None:
-    """Load simple KEY=VALUE entries from the project .env if present."""
-    env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
-        return
-    for raw_line in env_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    """Load simple KEY=VALUE entries from a project .env if present."""
+    for env_path in _dotenv_candidates():
+        if not env_path.exists():
             continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and value and key not in os.environ:
-            os.environ[key] = value
+        for raw_line in env_path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and value and key not in os.environ:
+                os.environ[key] = value
 
 
-def main() -> int:
-    _load_dotenv()
+def _parse_providers(raw: str) -> set[str]:
+    providers = {item.strip().lower() for item in raw.split("|") if item.strip()}
+    unknown = sorted(providers - set(SUPPORTED_PROVIDERS) - {"all"})
+    if unknown:
+        supported = ", ".join((*SUPPORTED_PROVIDERS, "all"))
+        raise argparse.ArgumentTypeError(f"Unknown provider(s): {', '.join(unknown)}. Supported: {supported}")
+    return providers
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fasteval",
         description="Compare one task results across LLM providers and models.",
@@ -39,6 +51,7 @@ def main() -> int:
         epilog="""Examples:
   fasteval --prompt \"Summarize this\" --file report.pdf --providers \"openai|gemini\" --out runs
   fasteval --image image.png --prompt \"Find widget bboxes\" --structured-output \"x:int(X start coordinate),y:int(Y start coordinate),width:int(Width),height:int(Height)\" --providers openai
+  fasteval --prompt \"Hello\" --providers mock   # no API key needed
 
 """,
     )
@@ -46,25 +59,45 @@ def main() -> int:
     parser.add_argument("-s", "--structured-output", help="Structured output compact schema for the response")
     parser.add_argument("-f", "--file", type=Path, help="Input document")
     parser.add_argument("-i", "--image", type=Path, help="Input image")
-    parser.add_argument("-pr", "--providers", default="all", choices=("all", "openai", "gemini", "anthropic"), help="Pipe-separated list of providers")
+    parser.add_argument(
+        "-pr",
+        "--providers",
+        type=_parse_providers,
+        default={"all"},
+        help=f"Pipe-separated providers: {'|'.join(SUPPORTED_PROVIDERS)}|all (default: all)",
+    )
+    parser.add_argument("-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)")
+    parser.add_argument("-c", "--concurrency", type=int, default=DEFAULT_MAX_CONCURRENCY, help="Max parallel model calls")
     parser.add_argument("-o", "--out", type=Path, default=Path("runs"), help="Output directory")
-    #parser.add_argument("-n", "--nruns", type=int, default=1, help="Number of runs for consistency checks")
+    return parser
 
-    args = parser.parse_args()
-    providers = {item.strip().lower() for item in args.providers.split("|") if item.strip()}
-    
+
+def main(argv: list[str] | None = None) -> int:
+    _load_dotenv()
+    args = build_parser().parse_args(argv)
+
     config = {
-        "prompt": args.prompt, 
-        "file": str(args.file) if args.file else None, 
+        "prompt": args.prompt,
+        "file": str(args.file) if args.file else None,
         "image": str(args.image) if args.image else None,
         "structured_output": shorthand_to_schema(args.structured_output) if args.structured_output else None,
-        "providers": providers, 
-        #"nruns": args.nruns,
+        "providers": args.providers,
+        "registry": str(args.registry) if args.registry else None,
+        "max_concurrency": max(1, args.concurrency),
         "out": str(args.out),
-        }
-    results = asyncio.run(run(config))
+    }
+    try:
+        results = asyncio.run(run(config))
+    except ValueError as exc:
+        print(json.dumps({"ok": False, "error": str(exc), "results": []}, ensure_ascii=False))
+        return 1
     json_path, html_path = save_report(config, results, args.out)
-    payload = {"ok": not any(row.error for row in results), "json_path": str(json_path), "html_path": str(html_path), "results": [row.__dict__ for row in results]}
+    payload = {
+        "ok": not any(row.error for row in results),
+        "json_path": str(json_path),
+        "html_path": str(html_path) if html_path else None,
+        "results": [row.__dict__ for row in results],
+    }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
 

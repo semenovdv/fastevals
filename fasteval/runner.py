@@ -11,10 +11,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 from litellm import acompletion
 
 
 _PROVIDER_PREFIX = {"openrouter": "openrouter/", "gemini": "gemini/"}
+SUPPORTED_PROVIDERS = ("openai", "gemini", "openrouter", "mock")
+DEFAULT_TIMEOUT_S = 120
+DEFAULT_MAX_CONCURRENCY = 4
+
+_BUILTIN_MOCK_MODELS = {
+    "mock:demo": {
+        "provider": "mock",
+        "model": "demo",
+        "reasoning_efforts": "off",
+        "response": "[{model}] {prompt}",
+    }
+}
 
 
 @dataclass
@@ -104,6 +117,90 @@ def _parse_response(response: Any) -> ModelResponse:
     )
 
 
+def _compute_costs(model: dict[str, Any], response: ModelResponse) -> dict[str, float | None]:
+    """Compute USD costs for disjoint token buckets.
+
+    ``input_tokens`` excludes cached tokens, ``output_tokens`` excludes
+    reasoning tokens, so each bucket is billed exactly once. Reasoning falls
+    back to the output rate when no dedicated rate is configured; cached
+    tokens accept the ``cached_input_cost_usd_per_mtok`` alias. A bucket with
+    zero tokens or no configured rate costs ``None``.
+    """
+
+    def rate(*keys: str) -> float | None:
+        for key in keys:
+            value = model.get(key)
+            if value is not None:
+                return float(value)
+        return None
+
+    def cost(tokens: int | None, *keys: str) -> float | None:
+        if not tokens or (price := rate(*keys)) is None:
+            return None
+        return tokens / 1_000_000 * price
+
+    return {
+        "input": cost(response.input_tokens, "input_cost_usd_per_mtok"),
+        "output": cost(response.output_tokens, "output_cost_usd_per_mtok"),
+        "reasoning": cost(response.reasoning_tokens, "reasoning_cost_usd_per_mtok", "output_cost_usd_per_mtok"),
+        "cached": cost(response.cached_tokens, "cached_input_cost_usd_per_mtok", "cached_cost_usd_per_mtok"),
+    }
+
+
+def _safe_error(exc: Exception) -> str:
+    """Render an exception message without leaking API keys."""
+    message = f"{type(exc).__name__}: {exc}"
+    for name, value in os.environ.items():
+        if name.endswith("_API_KEY") and value and value in message:
+            message = message.replace(value, "***")
+    return message
+
+
+def _mock_structured_text(schema: dict[str, Any]) -> str:
+    """Build a deterministic schema-valid JSON answer for mock models."""
+
+    def placeholder(prop: dict[str, Any]) -> Any:
+        prop_type = prop.get("type")
+        if prop_type == "string":
+            return prop.get("description") or "string"
+        if prop_type == "integer":
+            return 1
+        if prop_type == "number":
+            return 1.0
+        if prop_type == "boolean":
+            return True
+        if prop_type == "array":
+            return []
+        if prop_type == "object":
+            return {}
+        return None
+
+    properties = schema.get("properties", {})
+    return json.dumps({name: placeholder(prop) for name, prop in properties.items()})
+
+
+def _validate_structured(text: str, schema: dict[str, Any]) -> Any:
+    """Parse model output as JSON and validate it against the schema."""
+    try:
+        instance = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Model output is not valid JSON: {exc.msg} at position {exc.pos}") from exc
+    try:
+        jsonschema.validate(instance=instance, schema=schema)
+    except jsonschema.ValidationError as exc:
+        raise ValueError(f"Structured output failed schema validation: {exc.message}") from exc
+    return instance
+
+
+def _default_registry_path() -> Path | None:
+    """Prefer a registry in the working directory, fall back to the repo copy."""
+    cwd_candidate = Path.cwd() / "config" / "models.toml"
+    if cwd_candidate.exists():
+        return cwd_candidate
+    package_candidate = Path(__file__).resolve().parents[1] / "config" / "models.toml"
+    return package_candidate if package_candidate.exists() else None
+
+
 async def _call_model(
     model: dict[str, Any],
     prompt: str,
@@ -111,7 +208,9 @@ async def _call_model(
     image_path: str | None = None,
     response_schema: dict[str, Any] | None = None,
 ) -> ModelResponse:
-    if model.get("type") == "mock":
+    if model.get("provider") == "mock" or model.get("type") == "mock":
+        if response_schema:
+            return ModelResponse(text=_mock_structured_text(response_schema))
         template = model.get("response", "[{model}] {prompt}")
         return ModelResponse(text=template.format(model=model.get("model", "mock"), prompt=prompt))
 
@@ -125,6 +224,7 @@ async def _call_model(
         "model": _litellm_model_name(provider, model["model"]),
         "messages": _build_messages(prompt, file_paths or None),
         "api_key": api_key,
+        "timeout": model.get("timeout_s", DEFAULT_TIMEOUT_S),
     }
 
     effort = model.get("reasoning_effort")
@@ -166,41 +266,90 @@ def _load_registry(path: Path) -> dict[str, dict[str, Any]]:
     return data
 
 
+def _select_models(model_registry: dict[str, dict[str, Any]], requested: set[str]) -> list[dict[str, Any]]:
+    """Resolve requested providers to concrete registry entries."""
+    if "all" in requested or not requested:
+        # "all" means every real provider; mocks are opt-in.
+        selected = {entry.get("provider") for entry in model_registry.values() if entry.get("provider") != "mock"}
+        entries = [dict(entry, id=model_id) for model_id, entry in model_registry.items() if entry.get("provider") in selected]
+    else:
+        unknown = sorted(requested - set(SUPPORTED_PROVIDERS))
+        if unknown:
+            raise ValueError(f"Unknown provider(s): {', '.join(unknown)}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
+        entries = [dict(entry, id=model_id) for model_id, entry in model_registry.items() if entry.get("provider") in requested]
+        if not entries and requested == {"mock"}:
+            entries = [dict(entry, id=model_id) for model_id, entry in _BUILTIN_MOCK_MODELS.items()]
+    if not entries:
+        raise ValueError(
+            f"No models found for provider(s): {', '.join(sorted(requested))}. "
+            "Add entries to the model registry or pick another provider."
+        )
+    return _expand_reasoning_efforts(entries)
+
+
 async def run(config: dict[str, Any]) -> list[RunResult]:
     prompt = config["prompt"]
     file_path = config.get("file")
     image_path = config.get("image")
     response_schema = config.get("structured_output")
-    registry_path = Path(__file__).resolve().parents[1] / "config" / "models.toml"
-    model_registry = _load_registry(registry_path) if registry_path.exists() else {}
 
-    requested = config.get("providers", set())
-    if "all" in requested or not requested:
-        requested = {model.get("provider") for model in (model_registry or {}).values()}
-    models = [dict(model, id=model_id) for model_id, model in (model_registry or {}).items() if model.get("provider") in requested]
-    models = _expand_reasoning_efforts(models)
+    registry_override = config.get("registry")
+    if registry_override and not Path(registry_override).exists():
+        raise ValueError(f"Model registry not found: {registry_override}")
+    registry_path = Path(registry_override) if registry_override else _default_registry_path()
+    model_registry = _load_registry(registry_path) if registry_path and Path(registry_path).exists() else {}
+    models = _select_models(model_registry, {p.lower() for p in config.get("providers", set())})
+    semaphore = asyncio.Semaphore(int(config.get("max_concurrency", DEFAULT_MAX_CONCURRENCY)))
 
     async def run_model(model: dict[str, Any]) -> RunResult:
         started = time.perf_counter()
         try:
-            response = await _call_model(
-                model,
-                prompt,
-                file_path=file_path,
-                image_path=image_path,
-                response_schema=response_schema,
-            )
+            async with semaphore:
+                response = await _call_model(
+                    model,
+                    prompt,
+                    file_path=file_path,
+                    image_path=image_path,
+                    response_schema=response_schema,
+                )
             latency_ms = (time.perf_counter() - started) * 1000
-            input_tokens = response.input_tokens or 0
+            output: Any = response.text
+            if response_schema:
+                output = _validate_structured(response.text, response_schema)
+            costs = _compute_costs(model, response)
             output_tokens = response.output_tokens or 0
-            reasoning_tokens = response.reasoning_tokens or 0
-            cached_tokens = response.cached_tokens or 0
-            per_million = lambda key: (input_tokens if key == "input" else output_tokens if key == "output" else reasoning_tokens if key == "reasoning" else cached_tokens) / 1_000_000 * model.get(f"{key}_cost_usd_per_mtok", 0)
-            return RunResult(provider=model.get("provider", "unknown"), model=model.get("model", model.get("name", "unknown")), reasoning_effort=model.get("reasoning_effort", "off"), output=response.text, input_tokens=input_tokens, output_tokens=output_tokens, reasoning_tokens=reasoning_tokens, cached_tokens=cached_tokens, input_cost_usd=per_million("input"), output_cost_usd=per_million("output"), reasoning_cost_usd=per_million("reasoning"), cached_cost_usd=per_million("cached"), finish_reason=response.finish_reason or "completed", response_id=response.response_id or "", error="", latency_ms=latency_ms, time_to_first_token_ms=latency_ms, tokens_per_second=(output_tokens / (latency_ms / 1000)) if latency_ms else 0)
+            seconds = latency_ms / 1000
+            return RunResult(
+                provider=model.get("provider", "unknown"),
+                model=model.get("model", model.get("name", "unknown")),
+                reasoning_effort=model.get("reasoning_effort", "off"),
+                output=output,
+                input_tokens=response.input_tokens,
+                output_tokens=response.output_tokens,
+                reasoning_tokens=response.reasoning_tokens,
+                cached_tokens=response.cached_tokens,
+                input_cost_usd=costs["input"],
+                output_cost_usd=costs["output"],
+                reasoning_cost_usd=costs["reasoning"],
+                cached_cost_usd=costs["cached"],
+                finish_reason=response.finish_reason or "completed",
+                response_id=response.response_id or "",
+                error="",
+                latency_ms=latency_ms,
+                time_to_first_token_ms=None,
+                tokens_per_second=(output_tokens / seconds) if seconds > 0 and output_tokens > 0 else None,
+            )
         except Exception as exc:  # Keep the matrix report useful when one provider fails.
-            return RunResult(provider=model.get("provider", "unknown"), model=model.get("model", model.get("name", "unknown")), reasoning_effort=model.get("reasoning_effort", "off"), output=None, latency_ms=(time.perf_counter() - started) * 1000, error=str(exc))
+            return RunResult(
+                provider=model.get("provider", "unknown"),
+                model=model.get("model", model.get("name", "unknown")),
+                reasoning_effort=model.get("reasoning_effort", "off"),
+                output=None,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=_safe_error(exc),
+            )
 
-    return await asyncio.gather(*(run_model(model) for model in models))
+    return list(await asyncio.gather(*(run_model(model) for model in models)))
 
 
 def _escape(value: str) -> str:
@@ -305,7 +454,12 @@ def _render_result_cards(results: list[RunResult]) -> str:
     cards = []
     for index, row in enumerate(results, start=1):
         status_class, status_text = _status_badge(row)
-        body = _escape(row.error) if row.error else _escape(str(row.output or ""))
+        if row.error:
+            body = _escape(row.error)
+        elif isinstance(row.output, (dict, list)):
+            body = _escape(json.dumps(row.output, ensure_ascii=False, indent=2))
+        else:
+            body = _escape(str(row.output or ""))
         metrics = [
             ("Latency", _format_number(row.latency_ms, " ms")),
             ("TTFT", _format_number(row.time_to_first_token_ms, " ms")),
