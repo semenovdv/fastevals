@@ -27,12 +27,10 @@ classifiers = [
 ]
 dependencies = [
   "jsonschema>=4.23",
+  "litellm>=1.74",
 ]
 
 [project.optional-dependencies]
-native = [
-  "litellm>=1.74",
-]
 mcp = [
   "mcp>=1.2",
 ]
@@ -54,7 +52,7 @@ fastevals-mcp = "fastevals.mcp_server:main"
 include = ["fastevals*"]
 
 [tool.setuptools.package-data]
-fastevals = ["py.typed"]
+fastevals = ["py.typed", "data/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

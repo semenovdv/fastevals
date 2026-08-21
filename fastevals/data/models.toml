@@ -1,0 +1,60 @@
+# fastevals bundled model registry.
+# Prices are USD per 1M tokens; keep them current for honest cost reports.
+#
+# Override per project: create ./config/models.toml in your working
+# directory, or point --registry at any TOML file. Entries below are the
+# shipped default; paste-ready reference blocks for other models follow.
+
+["openai:gpt-5.6-luna"]
+provider = "openai"
+model = "gpt-5.6-luna"
+api_key_env = "OPENAI_API_KEY"
+reasoning_efforts = "none|low"
+input_cost_usd_per_mtok = 1.0
+cached_input_cost_usd_per_mtok = 0.1
+output_cost_usd_per_mtok = 6.0
+
+# --- Reference: paste into this file (or your own registry) to enable ---
+
+# ["openai:gpt-5.6-luna-full"]
+# provider = "openai"
+# model = "gpt-5.6-luna"
+# api_key_env = "OPENAI_API_KEY"
+# reasoning_efforts = "none|low|medium|high|xhigh"
+# input_cost_usd_per_mtok = 1.0
+# cached_input_cost_usd_per_mtok = 0.1
+# output_cost_usd_per_mtok = 6.0
+
+# ["openai:gpt-5.6-terra"]
+# provider = "openai"
+# model = "gpt-5.6-terra"
+# api_key_env = "OPENAI_API_KEY"
+# reasoning_efforts = "none|low|medium|high|xhigh"
+# input_cost_usd_per_mtok = 2.0
+# cached_input_cost_usd_per_mtok = 0.25
+# output_cost_usd_per_mtok = 15.0
+
+# ["openai:gpt-5.6-sol"]
+# provider = "openai"
+# model = "gpt-5.6-sol"
+# api_key_env = "OPENAI_API_KEY"
+# reasoning_efforts = "none|low|medium|high|xhigh"
+# input_cost_usd_per_mtok = 5.0
+# cached_input_cost_usd_per_mtok = 0.5
+# output_cost_usd_per_mtok = 30.0
+
+# ["gemini:gemini-3-flash"]
+# provider = "gemini"
+# model = "gemini-3-flash"
+# api_key_env = "GEMINI_API_KEY"
+# reasoning_efforts = "off|low|high"
+# input_cost_usd_per_mtok = 0.5
+# output_cost_usd_per_mtok = 3.0
+
+# ["openrouter:meta-llama/llama-4-maverick"]
+# provider = "openrouter"
+# model = "meta-llama/llama-4-maverick"
+# api_key_env = "OPENROUTER_API_KEY"
+# reasoning_efforts = "off"
+# input_cost_usd_per_mtok = 0.18
+# output_cost_usd_per_mtok = 0.59

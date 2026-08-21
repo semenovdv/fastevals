@@ -18,5 +18,6 @@ fastevals --prompt "Explain evaluation in three bullets" --providers openai --ou
 ```
 
 The configured model is `gpt-5.6-luna`; its `none` and `low` reasoning runs
-are expanded automatically from `config/models.toml`. Pricing in the registry
+are expanded automatically from the bundled registry (override with
+./config/models.toml or --registry). Pricing in the registry
 is USD per 1M tokens — keep it current for honest cost reports.

@@ -10,13 +10,16 @@ from .exceptions import ConfigError
 __all__ = ["default_registry_path", "load_registry", "select_specs"]
 
 
-def default_registry_path() -> Path | None:
-    """Prefer a registry in the working directory, fall back to the repo copy."""
+def default_registry_path() -> Path:
+    """Resolve the registry: ``./config/models.toml`` wins, bundled data is the fallback.
+
+    The bundled copy ships inside the wheel, so a plain ``pip install``
+    works out of the box anywhere.
+    """
     cwd_candidate = Path.cwd() / "config" / "models.toml"
     if cwd_candidate.exists():
         return cwd_candidate
-    package_candidate = Path(__file__).resolve().parents[1] / "config" / "models.toml"
-    return package_candidate if package_candidate.exists() else None
+    return Path(__file__).resolve().parent / "data" / "models.toml"
 
 
 def load_registry(path: str | Path) -> dict[str, dict[str, Any]]:

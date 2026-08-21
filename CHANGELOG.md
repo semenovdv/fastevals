@@ -6,6 +6,17 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A plain `pip install fastevals` was unusable outside a source checkout:
+  the model registry now ships inside the wheel and is discovered as a
+  fallback after `./config/models.toml`.
+
+### Changed
+
+- LiteLLM moved from the `native` extra into core dependencies; the extra is
+  removed. `pip install fastevals` is now the only install step.
+
 ### Added
 
 - Dataset evaluation: `--dataset` accepts JSONL/CSV case files with optional
