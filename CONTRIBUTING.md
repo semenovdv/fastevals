@@ -9,7 +9,7 @@ deliberately high: it is meant to stay small, honest and boring to maintain.
 git clone https://github.com/semenovdv/fastevals.git
 cd fastevals
 python3 -m venv .venv && source .venv/bin/activate
-make dev          # installs '.[dev,native]'
+make dev          # installs '.[dev]'
 make demo         # verify the mock pipeline works without API keys
 ```
 

@@ -29,7 +29,7 @@ to test, fastevals answers *which model does it best*.
 Install the server extras and register the entry point with any MCP client:
 
 ```bash
-python3 -m pip install 'fastevals[mcp,native]'
+python3 -m pip install 'fastevals[mcp]'
 claude mcp add fastevals -- fastevals-mcp        # Claude Code
 ```
 
@@ -70,15 +70,15 @@ can also drive evaluations through plain shell execution without MCP.
 ## Install
 
 ```bash
-python3 -m pip install 'fastevals[native]'      # runner + LiteLLM providers
-python3 -m pip install 'fastevals[mcp,native]'  # + MCP server for Claude
+python3 -m pip install 'fastevals'                     # runner, providers and bundled registry
+python3 -m pip install 'fastevals[mcp]'  # + MCP server for Claude
 ```
 
 Or from source:
 
 ```bash
 git clone https://github.com/semenovdv/fastevals
-cd fastevals && python3 -m pip install -e '.[native]'
+cd fastevals && python3 -m pip install -e .
 ```
 
 ## CLI quick start
@@ -96,7 +96,10 @@ can open or send to anyone). Exit codes: `0` when every model completed,
 
 ### Models and reasoning efforts
 
-Entries in `config/models.toml` become cells in the matrix:
+A minimal registry ships inside the package, so the first run works with zero
+setup. Override it per project by creating `./config/models.toml`, or point
+`--registry` at any TOML file. Each entry becomes one or more cells in the
+matrix:
 
 ```toml
 ["openai:gpt-5.6-luna"]

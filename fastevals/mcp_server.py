@@ -98,8 +98,6 @@ def list_models(registry: str | None = None) -> dict[str, Any]:
         registry: Optional path to an alternative TOML registry.
     """
     path = Path(registry) if registry else default_registry_path()
-    if not path or not Path(path).exists():
-        return {"models": [], "registry": None}
     try:
         entries = load_registry(path)
     except FastEvalError as exc:

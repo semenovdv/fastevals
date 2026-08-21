@@ -7,10 +7,10 @@ PY ?= .venv/bin/python
 endif
 
 install: ## Install as editable package with provider support
-	$(PY) -m pip install -e '.[native]'
+	$(PY) -m pip install -e .
 
 dev: ## Install with development tooling
-	$(PY) -m pip install -e '.[dev,native]'
+	$(PY) -m pip install -e '.[dev]'
 
 test: ## Run the test suite
 	$(PY) -m pytest

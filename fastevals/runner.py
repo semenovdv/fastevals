@@ -8,7 +8,7 @@ from typing import Any
 from .config import RunConfig
 from .dataset import Case, load_dataset
 from .evaluators import EVALUATORS, evaluate_output
-from .exceptions import ConfigError, FastEvalError
+from .exceptions import ConfigError
 from .models import ModelResponse, RunResult
 from .pricing import compute_costs
 from .providers import call_model, scrub_secrets
@@ -35,9 +35,8 @@ def _resolve_cases(config: RunConfig) -> list[Case]:
 async def run(config: RunConfig) -> list[RunResult]:
     """Execute the evaluation matrix: cases x attempts x models."""
     if config.registry and not Path(config.registry).exists():
-        raise FastEvalError(f"Model registry not found: {config.registry}")
-    registry_path = config.registry or default_registry_path()
-    entries = load_registry(registry_path) if registry_path and Path(registry_path).exists() else {}
+        raise ConfigError(f"Model registry not found: {config.registry}")
+    entries = load_registry(Path(config.registry) if config.registry else default_registry_path())
     specs = select_specs(entries, config.requested_providers())
     cases = _resolve_cases(config)
     semaphore = asyncio.Semaphore(config.max_concurrency)

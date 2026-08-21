@@ -7,9 +7,8 @@ from fastevals.exceptions import ConfigError
 from fastevals.registry import _expand_efforts, default_registry_path, load_registry, select_specs
 
 
-def test_load_registry_reads_models_toml():
-    registry_path = Path(__file__).resolve().parents[1] / "config" / "models.toml"
-    registry = load_registry(registry_path)
+def test_load_registry_reads_bundled_models():
+    registry = load_registry(default_registry_path())
     assert "openai:gpt-5.6-luna" in registry
     assert registry["openai:gpt-5.6-luna"]["provider"] == "openai"
 
@@ -68,8 +67,8 @@ def test_select_spec_rejects_unknown_keys(tmp_path: Path):
 
 def test_default_registry_path_prefers_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.chdir(tmp_path)
-    package_fallback = default_registry_path()
-    assert package_fallback is not None and package_fallback.exists()
+    bundled = default_registry_path()
+    assert bundled.exists() and "data" in str(bundled), "must fall back to packaged registry"
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     (config_dir / "models.toml").write_text("")
