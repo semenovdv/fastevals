@@ -1,7 +1,14 @@
-"""Helpers for converting the compact CLI schema syntax to JSON Schema."""
+"""Structured output support: compact schema syntax, validation, mock answers."""
 
+import json
 import re
 from typing import Any
+
+import jsonschema
+
+from .exceptions import StructuredOutputError
+
+__all__ = ["mocked_answer", "shorthand_to_schema", "validated_instance"]
 
 
 _TYPE_MAP: dict[str, dict[str, str]] = {
@@ -93,3 +100,39 @@ def _split_fields(spec: str) -> list[str]:
         raise ValueError("Unclosed description in structured output schema")
     fields.append(spec[start:])
     return fields
+
+
+def validated_instance(text: str, schema: dict[str, Any]) -> Any:
+    """Parse model output as JSON and validate it against ``schema``."""
+    try:
+        instance = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise StructuredOutputError(f"Model output is not valid JSON: {exc.msg} at position {exc.pos}") from exc
+    try:
+        jsonschema.validate(instance=instance, schema=schema)
+    except jsonschema.ValidationError as exc:
+        raise StructuredOutputError(f"Structured output failed schema validation: {exc.message}") from exc
+    return instance
+
+
+def mocked_answer(schema: dict[str, Any]) -> str:
+    """Build a deterministic schema-valid JSON answer for mock models."""
+
+    def placeholder(prop: dict[str, Any]) -> Any:
+        prop_type = prop.get("type")
+        if prop_type == "string":
+            return prop.get("description") or "string"
+        if prop_type == "integer":
+            return 1
+        if prop_type == "number":
+            return 1.0
+        if prop_type == "boolean":
+            return True
+        if prop_type == "array":
+            return []
+        if prop_type == "object":
+            return {}
+        return None
+
+    properties = schema.get("properties", {})
+    return json.dumps({name: placeholder(prop) for name, prop in properties.items()})

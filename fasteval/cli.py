@@ -1,17 +1,19 @@
+"""Command-line interface for fasteval."""
+
 import argparse
 import asyncio
 import json
-import sys
 import os
+import sys
 from pathlib import Path
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from fasteval.runner import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, run, save_report
-    from fasteval.structured import shorthand_to_schema
-else:
-    from .runner import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, run, save_report
-    from .structured import shorthand_to_schema
+from .config import DEFAULT_MAX_CONCURRENCY, RunConfig, SUPPORTED_PROVIDERS
+from .exceptions import FastEvalError
+from .report import save_report
+from .runner import run
+from .structured import shorthand_to_schema
+
+ALL_PROVIDERS = "all"
 
 
 def _dotenv_candidates() -> list[Path]:
@@ -34,13 +36,13 @@ def _load_dotenv() -> None:
                 os.environ[key] = value
 
 
-def _parse_providers(raw: str) -> set[str]:
+def _parse_providers(raw: str) -> frozenset[str]:
     providers = {item.strip().lower() for item in raw.split("|") if item.strip()}
-    unknown = sorted(providers - set(SUPPORTED_PROVIDERS) - {"all"})
+    unknown = sorted(providers - set(SUPPORTED_PROVIDERS) - {ALL_PROVIDERS})
     if unknown:
-        supported = ", ".join((*SUPPORTED_PROVIDERS, "all"))
+        supported = ", ".join((*SUPPORTED_PROVIDERS, ALL_PROVIDERS))
         raise argparse.ArgumentTypeError(f"Unknown provider(s): {', '.join(unknown)}. Supported: {supported}")
-    return providers
+    return frozenset(providers)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,13 +59,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-p", "--prompt", required=True, help="Task prompt")
     parser.add_argument("-s", "--structured-output", help="Structured output compact schema for the response")
-    parser.add_argument("-f", "--file", type=Path, help="Input document")
+    parser.add_argument("-f", "--file", type=Path, help="Input document (sent to the model as an attachment)")
     parser.add_argument("-i", "--image", type=Path, help="Input image")
     parser.add_argument(
         "-pr",
         "--providers",
         type=_parse_providers,
-        default={"all"},
+        default=frozenset({ALL_PROVIDERS}),
         help=f"Pipe-separated providers: {'|'.join(SUPPORTED_PROVIDERS)}|all (default: all)",
     )
     parser.add_argument("-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)")
@@ -76,27 +78,28 @@ def main(argv: list[str] | None = None) -> int:
     _load_dotenv()
     args = build_parser().parse_args(argv)
 
-    config = {
-        "prompt": args.prompt,
-        "file": str(args.file) if args.file else None,
-        "image": str(args.image) if args.image else None,
-        "structured_output": shorthand_to_schema(args.structured_output) if args.structured_output else None,
-        "providers": args.providers,
-        "registry": str(args.registry) if args.registry else None,
-        "max_concurrency": max(1, args.concurrency),
-        "out": str(args.out),
-    }
     try:
+        config = RunConfig(
+            prompt=args.prompt,
+            providers=args.providers,
+            file=str(args.file) if args.file else None,
+            image=str(args.image) if args.image else None,
+            structured_output=shorthand_to_schema(args.structured_output) if args.structured_output else None,
+            registry=str(args.registry) if args.registry else None,
+            max_concurrency=max(1, args.concurrency),
+            out=str(args.out),
+        )
         results = asyncio.run(run(config))
-    except ValueError as exc:
+    except (FastEvalError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc), "results": []}, ensure_ascii=False))
         return 1
+
     json_path, html_path = save_report(config, results, args.out)
     payload = {
-        "ok": not any(row.error for row in results),
+        "ok": all(row.ok for row in results),
         "json_path": str(json_path),
         "html_path": str(html_path) if html_path else None,
-        "results": [row.__dict__ for row in results],
+        "results": [vars(row) for row in results],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
