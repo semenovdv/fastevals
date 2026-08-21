@@ -12,7 +12,7 @@ from mcp.server.mcpserver.server import MCPServer
 
 from .config import ALL_PROVIDERS, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
-from .registry import default_registry_path, load_registry
+from .registry import default_registry_path, describe_registry, load_registry
 from .report import save_report
 from .runner import run
 from .structured import shorthand_to_schema
@@ -105,17 +105,7 @@ def list_models(registry: str | None = None) -> dict[str, Any]:
     return {
         "registry": str(path),
         "supported_providers": list(SUPPORTED_PROVIDERS),
-        "models": [
-            {
-                "id": model_id,
-                "provider": entry.get("provider"),
-                "model": entry.get("model"),
-                "reasoning_efforts": entry.get("reasoning_efforts", entry.get("reasoning_effort", "off")),
-                "input_cost_usd_per_mtok": entry.get("input_cost_usd_per_mtok"),
-                "output_cost_usd_per_mtok": entry.get("output_cost_usd_per_mtok"),
-            }
-            for model_id, entry in entries.items()
-        ],
+        "models": describe_registry(entries),
     }
 
 
