@@ -6,8 +6,10 @@ import json
 import os
 from pathlib import Path
 
+from . import __version__
 from .config import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, RunConfig
 from .exceptions import FastEvalError
+from .registry import default_registry_path, describe_registry, load_registry
 from .report import save_report
 from .runner import run
 from .structured import shorthand_to_schema
@@ -50,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Compare one task results across LLM providers and models.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
+  fastevals --list-models
   fastevals --prompt \"Summarize this\" --providers \"openai|gemini\" --out runs
   fastevals --image image.png --prompt \"Find widget bboxes\" \\
     --structured-output \"x:int(X coord),y:int(Y coord),width:int(Width),height:int(Height)\" \\
@@ -58,12 +61,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 """,
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "-l",
+        "--list-models",
+        action="store_true",
+        help="Print the resolved model registry as JSON and exit",
+    )
     parser.add_argument("-p", "--prompt", help="Task prompt (omit when --dataset provides the prompts)")
     parser.add_argument("-s", "--structured-output", help="Structured output compact schema for the response")
     parser.add_argument("-f", "--file", type=Path, help="Input document (sent to the model as an attachment)")
     parser.add_argument("-i", "--image", type=Path, help="Input image")
     parser.add_argument(
-        "-pr",
         "--providers",
         type=_parse_providers,
         default=frozenset({ALL_PROVIDERS}),
@@ -88,9 +97,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _print_models(registry_override: Path | None) -> int:
+    path = registry_override or default_registry_path()
+    try:
+        models = describe_registry(load_registry(path))
+    except FastEvalError as exc:
+        print(json.dumps({"ok": False, "registry": str(path), "error": str(exc)}, ensure_ascii=False))
+        return 1
+    print(json.dumps({"ok": True, "registry": str(path), "models": models}, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _load_dotenv()
     args = build_parser().parse_args(argv)
+
+    if args.list_models:
+        return _print_models(args.registry)
 
     try:
         config = RunConfig(

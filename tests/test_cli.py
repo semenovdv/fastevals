@@ -21,6 +21,48 @@ def test_parser_defaults_to_all_providers():
     assert args.providers == {"all"}
 
 
+def test_parser_no_longer_accepts_pr_short_flag():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["-pr", "openai"])
+
+
+def test_version_flag_prints_version_and_exits(capsys):
+    from fastevals import __version__
+
+    with pytest.raises(SystemExit) as excinfo:
+        build_parser().parse_args(["--version"])
+    assert excinfo.value.code == 0
+    assert __version__ in capsys.readouterr().out
+
+
+def test_list_models_prints_bundled_registry(capsys):
+    exit_code = main(["--list-models"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    ids = [model["id"] for model in payload["models"]]
+    assert "openai:gpt-5.6-luna" in ids
+    assert all("reasoning_efforts" in model for model in payload["models"])
+
+
+def test_list_models_with_custom_registry(tmp_path, capsys):
+    registry = tmp_path / "custom.toml"
+    registry.write_text('["openai:gpt-x"]\nprovider = "openai"\nmodel = "gpt-x"\n')
+    exit_code = main(["--list-models", "--registry", str(registry)])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["models"][0]["model"] == "gpt-x"
+
+
+def test_list_models_with_empty_registry_fails_cleanly(tmp_path, capsys):
+    registry = tmp_path / "empty.toml"
+    registry.write_text("")
+    exit_code = main(["--list-models", "--registry", str(registry)])
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+
+
 def test_missing_prompt_and_dataset_returns_error(tmp_path, capsys):
     exit_code = main(["--out", str(tmp_path)])
     assert exit_code == 1

@@ -6,6 +6,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `--version` and `--list-models` CLI flags; the latter prints the resolved
+  registry as JSON (shared implementation with the MCP `list_models` tool).
+
+### Changed
+
+- Dropped the non-standard `-pr` short flag; use `--providers`.
+
 ### Fixed
 
 - A plain `pip install fastevals` was unusable outside a source checkout:

@@ -7,7 +7,7 @@ from typing import Any
 from .config import ALL_PROVIDERS, ModelSpec
 from .exceptions import ConfigError
 
-__all__ = ["default_registry_path", "load_registry", "select_specs"]
+__all__ = ["default_registry_path", "describe_registry", "load_registry", "select_specs"]
 
 
 def default_registry_path() -> Path:
@@ -64,6 +64,22 @@ def select_specs(entries: dict[str, dict[str, Any]], requested: set[str]) -> lis
             "Add entries to the model registry or pick another provider."
         )
     return [ModelSpec.from_dict(expanded, _spec_id(expanded)) for expanded in _expand_all(rows)]
+
+
+def describe_registry(entries: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Human/agent-readable summary of registry entries."""
+    return [
+        {
+            "id": model_id,
+            "provider": entry.get("provider"),
+            "model": entry.get("model"),
+            "reasoning_efforts": entry.get("reasoning_efforts", entry.get("reasoning_effort", "off")),
+            "input_cost_usd_per_mtok": entry.get("input_cost_usd_per_mtok"),
+            "cached_input_cost_usd_per_mtok": entry.get("cached_input_cost_usd_per_mtok"),
+            "output_cost_usd_per_mtok": entry.get("output_cost_usd_per_mtok"),
+        }
+        for model_id, entry in entries.items()
+    ]
 
 
 def _spec_id(expanded: dict[str, Any]) -> str:

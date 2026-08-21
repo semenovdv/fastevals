@@ -70,8 +70,8 @@ can also drive evaluations through plain shell execution without MCP.
 ## Install
 
 ```bash
-python3 -m pip install 'fastevals'                     # runner, providers and bundled registry
-python3 -m pip install 'fastevals[mcp]'  # + MCP server for Claude
+python3 -m pip install fastevals            # runner, providers, bundled registry
+python3 -m pip install 'fastevals[mcp]'     # + MCP server for Claude
 ```
 
 Or from source:
@@ -85,6 +85,7 @@ cd fastevals && python3 -m pip install -e .
 
 ```bash
 export OPENAI_API_KEY=...                  # keys live in the environment only
+fastevals --list-models                    # see what you can run (bundled registry)
 fastevals --prompt "Explain evaluation in three bullets" \
           --providers openai --out runs
 ```
