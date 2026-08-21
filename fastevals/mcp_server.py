@@ -33,11 +33,13 @@ mcp = MCPServer(
 async def run_evaluation(
     prompt: str = "",
     providers: str = ALL_PROVIDERS,
+    models: str | None = None,
     structured_output: str | None = None,
     dataset: str | None = None,
     file: str | None = None,
     image: str | None = None,
     nruns: int = 1,
+    registry: str | None = None,
     out: str = "runs",
 ) -> dict[str, Any]:
     """Run an evaluation matrix and save a JSON + HTML report.
@@ -45,11 +47,16 @@ async def run_evaluation(
     Args:
         prompt: The task prompt (omit when ``dataset`` supplies prompts).
         providers: Pipe-separated provider list, e.g. ``openai|openrouter`` or ``all``.
+        models: Optional pipe-separated selectors narrowing the matrix, e.g.
+            ``luna@none|high`` or ``terra@low|high`` (substring match on model
+            name/id, optional ``@efforts`` filter). Use with the list_models
+            tool to discover ids first.
         structured_output: Optional compact schema like ``name:str,age:int``.
         dataset: Optional JSONL/CSV path with cases (prompt, expected, evaluator, pattern).
         file: Optional document attachment (image, PDF or text file).
         image: Optional image attachment.
         nruns: Repeat every case this many times for consistency checks.
+        registry: Optional path to an alternative TOML registry.
         out: Directory where reports are written.
     """
     try:
@@ -57,11 +64,13 @@ async def run_evaluation(
         config = RunConfig(
             prompt=prompt,
             providers=frozenset(part.strip().lower() for part in providers.split("|") if part.strip()),
+            models=frozenset(part.strip() for part in models.split("|") if part.strip()) if models else None,
             structured_output=schema,
             dataset=dataset,
             file=file,
             image=image,
             nruns=max(1, nruns),
+            registry=registry,
             out=out,
         )
         results = await run(config)

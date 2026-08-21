@@ -46,6 +46,13 @@ def _parse_providers(raw: str) -> frozenset[str]:
     return frozenset(providers)
 
 
+def _parse_models(raw: str) -> frozenset[str]:
+    models = frozenset(item.strip() for item in raw.split("|") if item.strip())
+    if not models:
+        raise argparse.ArgumentTypeError("--models must contain at least one selector, e.g. luna@low")
+    return models
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fastevals",
@@ -77,6 +84,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=_parse_providers,
         default=frozenset({ALL_PROVIDERS}),
         help=f"Pipe-separated providers: {'|'.join(SUPPORTED_PROVIDERS)}|all (default: all)",
+    )
+    parser.add_argument(
+        "-m",
+        "--models",
+        type=_parse_models,
+        help="Cherry-pick models: 'luna@none,high', 'terra@low', 'gpt-5.6-sol' (pipe-separated)",
     )
     parser.add_argument(
         "-r", "--registry", type=Path, help="Path to the model registry TOML (default: config/models.toml)"
@@ -119,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         config = RunConfig(
             prompt=args.prompt or "",
             providers=args.providers,
+            models=args.models,
             file=str(args.file) if args.file else None,
             image=str(args.image) if args.image else None,
             structured_output=shorthand_to_schema(args.structured_output) if args.structured_output else None,

@@ -6,6 +6,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Model selectors for cherry-picking the comparison matrix without editing a
+  registry: `-m/--models` on the CLI, a `models` argument on the MCP
+  `run_evaluation` tool, and `RunConfig(models=...)` in Python. Grammar:
+  substring match on model name/id with optional `@effort,effort` filter
+  (e.g. `luna@high|sol@low`); unknown selectors fail listing available ids.
+
 ## [0.1.2] - 2026-08-21
 
 ### Fixed
