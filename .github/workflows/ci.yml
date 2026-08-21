@@ -25,10 +25,10 @@ jobs:
         run: python -m pip install -e '.[dev]'
 
       - name: Ruff lint
-        run: ruff check fasteval tests
+        run: ruff check fastevals tests
 
       - name: Ruff format check
-        run: ruff format --check fasteval tests
+        run: ruff format --check fastevals tests
 
       - name: mypy strict
         run: mypy
@@ -60,6 +60,6 @@ jobs:
 
       - name: Smoke test wheel in clean venv
         run: |
-          python -m venv /tmp/fasteval-smoke
-          /tmp/fasteval-smoke/bin/pip install dist/*.whl
-          /tmp/fasteval-smoke/bin/fasteval --prompt "smoke" --providers mock --out /tmp/fasteval-smoke-runs
+          python -m venv /tmp/fastevals-smoke
+          /tmp/fastevals-smoke/bin/pip install dist/*.whl
+          /tmp/fastevals-smoke/bin/fastevals --prompt "smoke" --providers mock --out /tmp/fastevals-smoke-runs

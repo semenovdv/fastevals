@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from fasteval.config import RunConfig
-from fasteval.models import RunResult
-from fasteval.report import render_html_report, save_report
+from fastevals.config import RunConfig
+from fastevals.models import RunResult
+from fastevals.report import render_html_report, save_report
 
 
 def make_result(**overrides) -> RunResult:

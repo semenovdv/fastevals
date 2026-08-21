@@ -14,13 +14,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   with per-row verdicts and per-model aggregate pass rates.
 - `--nruns N` repeats every case for consistency checks; reports show attempts
   and aggregates.
-- MCP server (`fasteval-mcp`) exposing `run_evaluation`, `list_models` and
+- MCP server (`fastevals-mcp`) exposing `run_evaluation`, `list_models` and
   `get_run` tools over stdio.
 - Smart attachments: images sent as vision parts, PDFs as file parts, text
   files inlined; 20 MB size limit validated up front.
 - Dashboard: sortable/filterable comparison table, CSV/Markdown export,
   fastest/cheapest/top-throughput cards, per-model aggregate tables,
-  fasteval version metadata.
+  fastevals version metadata.
 - Quality gates: ruff + formatter, `mypy --strict`, branch coverage with an
   85% floor, GitHub Actions matrix CI (3.11–3.13), wheel smoke test,
   pre-commit hooks, Makefile.

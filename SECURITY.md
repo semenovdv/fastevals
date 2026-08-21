@@ -7,7 +7,7 @@ commit if you need stability.
 
 ## Reporting a vulnerability
 
-Open a [private security advisory](https://github.com/semenovdv/fasteval/security/advisories/new)
+Open a [private security advisory](https://github.com/semenovdv/fastevals/security/advisories/new)
 or email the maintainer directly. Please do not open a public issue for
 security reports. You can expect a response within a few days.
 

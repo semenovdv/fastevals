@@ -322,7 +322,7 @@ def _table_tools_script() -> str:
         const lines = [exportRows(), ...exportData()].map(cells =>
           cells.map(cell => '"' + cell.replace(/"/g, '""') + '"').join(",")
         );
-        download("fasteval-report.csv", lines.join("\\n"), "text/csv");
+        download("fastevals-report.csv", lines.join("\\n"), "text/csv");
       });
       document.getElementById("export-md").addEventListener("click", () => {
         const escapePipe = text => text.replace(/\\|/g, "\\\\|");
@@ -333,7 +333,7 @@ def _table_tools_script() -> str:
           "| " + header.map(() => "---").join(" | ") + " |",
           ...rows.map(cells => "| " + cells.join(" | ") + " |"),
         ];
-        download("fasteval-report.md", lines.join("\\n"), "text/markdown");
+        download("fastevals-report.md", lines.join("\\n"), "text/markdown");
       });
       function download(filename, content, mime) {
         const link = document.createElement("a");
@@ -368,7 +368,7 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>fasteval report</title>
+  <title>fastevals report</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
     :root {{
@@ -603,8 +603,8 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
     <header class="hero">
       <div class="hero-top">
         <div>
-          <h1>fasteval report</h1>
-          <p class="meta">{len(results)} model run(s) · fasteval v{__version__} · {_escape(created_at)}</p>
+          <h1>fastevals report</h1>
+          <p class="meta">{len(results)} model run(s) · fastevals v{__version__} · {_escape(created_at)}</p>
         </div>
         <span class="badge {overall_status}">{overall_label}</span>
       </div>
@@ -776,7 +776,7 @@ def save_report(
     run_dir.mkdir(parents=True, exist_ok=True)
     created_at = datetime.now(UTC).isoformat()
     payload = {
-        "fasteval_version": __version__,
+        "fastevals_version": __version__,
         "prompt": config.prompt or None,
         "dataset": config.dataset,
         "cases": _dataset_payload(config),

@@ -1,6 +1,6 @@
-# Connecting fasteval to Claude via MCP
+# Connecting fastevals to Claude via MCP
 
-fasteval ships an MCP server, so AI assistants can run evaluations as a tool.
+fastevals ships an MCP server, so AI assistants can run evaluations as a tool.
 
 ## Install
 
@@ -8,12 +8,12 @@ fasteval ships an MCP server, so AI assistants can run evaluations as a tool.
 python3 -m pip install -e '.[mcp,native]'
 ```
 
-The entry point is `fasteval-mcp` (stdio transport).
+The entry point is `fastevals-mcp` (stdio transport).
 
 ## Claude Code
 
 ```bash
-claude mcp add fasteval -- fasteval-mcp
+claude mcp add fastevals -- fastevals-mcp
 ```
 
 ## Claude Desktop (`claude_desktop_config.json`)
@@ -21,8 +21,8 @@ claude mcp add fasteval -- fasteval-mcp
 ```json
 {
   "mcpServers": {
-    "fasteval": {
-      "command": "fasteval-mcp"
+    "fastevals": {
+      "command": "fastevals-mcp"
     }
   }
 }
@@ -38,7 +38,7 @@ claude mcp add fasteval -- fasteval-mcp
 
 Example assistant prompt:
 
-> Use fasteval to compare gpt-5.6-luna at reasoning none and low on
+> Use fastevals to compare gpt-5.6-luna at reasoning none and low on
 > "Explain evaluation in three bullets", then tell me which run was cheaper.
 
 The mock provider works without any API key, so you can explore the tools

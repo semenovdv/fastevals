@@ -1,4 +1,4 @@
-"""Structured output support: compact schema syntax, validation, mock answers."""
+"""Structured output support: compact schema syntax and response validation."""
 
 import json
 import re
@@ -8,7 +8,7 @@ import jsonschema
 
 from .exceptions import StructuredOutputError
 
-__all__ = ["mocked_answer", "shorthand_to_schema", "validated_instance"]
+__all__ = ["shorthand_to_schema", "validated_instance"]
 
 
 _TYPE_MAP: dict[str, dict[str, str]] = {
@@ -113,26 +113,3 @@ def validated_instance(text: str, schema: dict[str, Any]) -> Any:
     except jsonschema.ValidationError as exc:
         raise StructuredOutputError(f"Structured output failed schema validation: {exc.message}") from exc
     return instance
-
-
-def mocked_answer(schema: dict[str, Any]) -> str:
-    """Build a deterministic schema-valid JSON answer for mock models."""
-
-    def placeholder(prop: dict[str, Any]) -> Any:
-        prop_type = prop.get("type")
-        if prop_type == "string":
-            return prop.get("description") or "string"
-        if prop_type == "integer":
-            return 1
-        if prop_type == "number":
-            return 1.0
-        if prop_type == "boolean":
-            return True
-        if prop_type == "array":
-            return []
-        if prop_type == "object":
-            return {}
-        return None
-
-    properties = schema.get("properties", {})
-    return json.dumps({name: placeholder(prop) for name, prop in properties.items()})

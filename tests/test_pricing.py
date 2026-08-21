@@ -1,8 +1,8 @@
 import pytest
 
-from fasteval.config import ModelSpec
-from fasteval.models import ModelResponse
-from fasteval.pricing import compute_costs
+from fastevals.config import ModelSpec
+from fastevals.models import ModelResponse
+from fastevals.pricing import compute_costs
 
 
 def make_spec(**rates) -> ModelSpec:

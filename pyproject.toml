@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fasteval"
+name = "fastevals"
 version = "0.1.0"
 description = "Small, provider-agnostic evaluation runner for LLM applications."
 readme = "README.md"
@@ -47,14 +47,14 @@ dev = [
 ]
 
 [project.scripts]
-fasteval = "fasteval.cli:main"
-fasteval-mcp = "fasteval.mcp_server:main"
+fastevals = "fastevals.cli:main"
+fastevals-mcp = "fastevals.mcp_server:main"
 
 [tool.setuptools.packages.find]
-include = ["fasteval*"]
+include = ["fastevals*"]
 
 [tool.setuptools.package-data]
-fasteval = ["py.typed"]
+fastevals = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -77,7 +77,7 @@ select = [
 ]
 
 [tool.mypy]
-files = ["fasteval"]
+files = ["fastevals"]
 python_version = "3.11"
 strict = true
 warn_unreachable = true
@@ -87,7 +87,7 @@ module = "litellm.*"
 ignore_missing_imports = true
 
 [tool.coverage.run]
-source = ["fasteval"]
+source = ["fastevals"]
 branch = true
 
 [tool.coverage.report]

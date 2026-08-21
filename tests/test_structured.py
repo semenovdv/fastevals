@@ -1,6 +1,6 @@
 import pytest
 
-from fasteval.structured import shorthand_to_schema
+from fastevals.structured import shorthand_to_schema
 
 
 def test_all_scalar_aliases():

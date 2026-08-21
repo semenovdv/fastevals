@@ -1,10 +1,10 @@
-"""Exception hierarchy for fasteval."""
+"""Exception hierarchy for fastevals."""
 
 __all__ = ["ConfigError", "FastEvalError", "ProviderError", "StructuredOutputError"]
 
 
 class FastEvalError(Exception):
-    """Base class for all fasteval errors."""
+    """Base class for all fastevals errors."""
 
 
 class ConfigError(FastEvalError):

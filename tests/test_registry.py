@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from fasteval.config import ModelSpec
-from fasteval.exceptions import ConfigError
-from fasteval.registry import _expand_efforts, default_registry_path, load_registry, select_specs
+from fastevals.config import ModelSpec
+from fastevals.exceptions import ConfigError
+from fastevals.registry import _expand_efforts, default_registry_path, load_registry, select_specs
 
 
 def test_load_registry_reads_models_toml():
@@ -53,13 +53,6 @@ def test_select_specs_builds_typed_models():
     assert [spec.reasoning_effort for spec in specs] == ["off", "low"]
     assert all(spec.id.endswith(spec.reasoning_effort) for spec in specs)
     assert specs[0].input_cost_usd_per_mtok == 1.0
-
-
-def test_select_specs_injects_builtin_mock_when_missing():
-    specs = select_specs({}, {"mock"})
-    assert len(specs) == 1
-    assert specs[0].provider == "mock"
-    assert specs[0].is_mock
 
 
 def test_select_specs_unknown_provider_raises():

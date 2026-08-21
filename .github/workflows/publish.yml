@@ -52,8 +52,8 @@ jobs:
       - name: Install from PyPI and run the mock demo
         run: |
           for attempt in 1 2 3; do
-            if pip install --quiet fasteval; then break; fi
+            if pip install --quiet fastevals; then break; fi
             [ "$attempt" = "3" ] && exit 1
             sleep 30
           done
-          fasteval --prompt "published" --providers mock --out /tmp/fasteval-smoke
+          fastevals --prompt "published" --providers mock --out /tmp/fastevals-smoke

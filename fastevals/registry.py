@@ -9,15 +9,6 @@ from .exceptions import ConfigError
 
 __all__ = ["default_registry_path", "load_registry", "select_specs"]
 
-BUILTIN_MOCK_MODELS: dict[str, dict[str, Any]] = {
-    "mock:demo": {
-        "provider": "mock",
-        "model": "demo",
-        "reasoning_efforts": "off",
-        "response": "[{model}] {prompt}",
-    }
-}
-
 
 def default_registry_path() -> Path | None:
     """Prefer a registry in the working directory, fall back to the repo copy."""
@@ -53,25 +44,17 @@ def _expand_efforts(raw: dict[str, Any]) -> list[dict[str, Any]]:
 def select_specs(entries: dict[str, dict[str, Any]], requested: set[str]) -> list[ModelSpec]:
     """Resolve requested providers to concrete, effort-expanded model specs.
 
-    ``all`` selects every non-mock provider; mocks are opt-in. When only
-    ``mock`` is requested and the registry defines no mock entries, a
-    built-in demo model is injected so the CLI works without any setup.
+    ``all`` selects every provider present in the registry; otherwise only
+    entries matching the requested providers are kept.
     """
     if ALL_PROVIDERS in requested or not requested:
-        selected = {str(entry.get("provider", "")).lower() for entry in entries.values()} - {"mock"}
-        rows = [
-            dict(entry, id=model_id)
-            for model_id, entry in entries.items()
-            if str(entry.get("provider", "")).lower() in selected
-        ]
+        rows = [dict(entry, id=model_id) for model_id, entry in entries.items()]
     else:
         rows = [
             dict(entry, id=model_id)
             for model_id, entry in entries.items()
             if str(entry.get("provider", "")).lower() in requested
         ]
-        if not rows and requested == {"mock"}:
-            rows = [dict(entry, id=model_id) for model_id, entry in BUILTIN_MOCK_MODELS.items()]
     if not rows:
         raise ConfigError(
             f"No models found for provider(s): {', '.join(sorted(requested))}. "

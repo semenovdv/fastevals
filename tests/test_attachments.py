@@ -1,8 +1,8 @@
 import pytest
 
-from fasteval.config import MAX_ATTACHMENT_BYTES, RunConfig
-from fasteval.exceptions import ConfigError
-from fasteval.providers import build_messages
+from fastevals.config import MAX_ATTACHMENT_BYTES, RunConfig
+from fastevals.exceptions import ConfigError
+from fastevals.providers import build_messages
 
 
 def write_file(tmp_path, name: str, payload: bytes) -> str:
@@ -46,7 +46,7 @@ def test_text_file_is_inlined(tmp_path):
 
 
 def test_oversized_attachment_rejected(tmp_path, monkeypatch):
-    monkeypatch.setattr("fasteval.providers.MAX_ATTACHMENT_BYTES", 8)
+    monkeypatch.setattr("fastevals.providers.MAX_ATTACHMENT_BYTES", 8)
     big_path = write_file(tmp_path, "pixel.png", b"1234567890")
     with pytest.raises(ConfigError, match="exceeds"):
         build_messages("x", [big_path])

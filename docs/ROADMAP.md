@@ -1,6 +1,6 @@
 # Roadmap
 
-fasteval follows a "small core, honest metrics" philosophy. Everything below
+fastevals follows a "small core, honest metrics" philosophy. Everything below
 is direction, not promise — see [`CHANGELOG.md`](../CHANGELOG.md) for what
 has already landed.
 
@@ -19,12 +19,12 @@ has already landed.
 
 ## Next
 
-Prioritized by impact: adoption first, then the features that turn fasteval
+Prioritized by impact: adoption first, then the features that turn fastevals
 from a comparison tool into an engineering tool.
 
 ### P1 — Adoption
 
-- **Publish to PyPI** via trusted publishing so `pip install fasteval` works.
+- **Publish to PyPI** via trusted publishing so `pip install fastevals` works.
 - **Codecov** integration with a live coverage badge.
 - **Demo GIF** in the README (mock provider, zero credits).
 - **Docs site** on GitHub Pages (mkdocs-material) with an API reference and a
@@ -33,7 +33,7 @@ from a comparison tool into an engineering tool.
 ### P2 — Engineering tool
 
 - **Eval gates for CI** — store a baseline run, compare future runs against
-  it (`fasteval check --baseline`), and fail a PR when quality regresses or
+  it (`fastevals check --baseline`), and fail a PR when quality regresses or
   cost grows beyond a threshold. The pytest moment for LLM evaluation.
 - **LLM-as-judge evaluator** — opt-in rubric-based scoring for open-ended
   cases, clearly labeled as a subjective metric.
@@ -63,7 +63,7 @@ from a comparison tool into an engineering tool.
 
 ## Non-goals
 
-- Becoming a full observability platform — fasteval measures one matrix per run.
+- Becoming a full observability platform — fastevals measures one matrix per run.
 - Hosting or team features; the output must stay plain files you own.
 - Hiding provider differences behind fake abstractions; honest per-provider
   behavior beats uniform illusions.

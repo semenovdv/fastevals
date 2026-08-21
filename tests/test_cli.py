@@ -1,13 +1,14 @@
 import json
+from pathlib import Path
 
 import pytest
 
-from fasteval.cli import build_parser, main
+from fastevals.cli import build_parser, main
 
 
 def test_parser_accepts_pipe_separated_providers():
-    args = build_parser().parse_args(["--prompt", "x", "--providers", "openai|mock"])
-    assert args.providers == {"openai", "mock"}
+    args = build_parser().parse_args(["--prompt", "x", "--providers", "openai|gemini"])
+    assert args.providers == {"openai", "gemini"}
 
 
 def test_parser_rejects_unknown_provider():
@@ -28,34 +29,45 @@ def test_missing_prompt_and_dataset_returns_error(tmp_path, capsys):
     assert "Prompt" in payload["error"]
 
 
-def test_mock_run_end_to_end(tmp_path, capsys):
-    exit_code = main(["--prompt", "hi there", "--providers", "mock", "--out", str(tmp_path)])
+@pytest.fixture
+def offline_openai(fake_llm, api_key, openai_registry):
+    """Wire the CLI to the fake LiteLLM with a temporary registry."""
+    return ["--registry", str(openai_registry)]
+
+
+def test_run_end_to_end(tmp_path, capsys, offline_openai, fake_llm):
+    fake_llm(text="answer text")
+    exit_code = main(["--prompt", "hi there", "--providers", "openai", *offline_openai, "--out", str(tmp_path)])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
-    run_dir = tmp_path / payload["json_path"].split("/")[-2]
+    run_dir = Path(payload["json_path"]).parent
     assert (run_dir / "run.json").exists()
     assert (run_dir / "report.html").exists()
     saved = json.loads((run_dir / "run.json").read_text())
-    assert saved["results"][0]["output"] == "[demo] hi there"
+    assert [row["output"] for row in saved["results"]] == ["answer text", "answer text"]
+    assert all("ok" in row and "total_cost_usd" in row for row in saved["results"])
 
 
-def test_structured_mock_run_end_to_end(tmp_path, capsys):
+def test_structured_run_end_to_end(tmp_path, capsys, offline_openai, fake_llm):
+    fake_llm(text=json.dumps({"name": "Ada"}))
     exit_code = main(
         [
             "--prompt",
             "extract",
             "--structured-output",
-            'name:str("A name"),age:int',
+            'name:str("A name")',
             "--providers",
-            "mock",
+            "openai",
+            *offline_openai,
             "--out",
             str(tmp_path),
         ]
     )
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["results"][0]["output"] == {"name": "A name", "age": 1}
+    outputs = [row["output"] for row in payload["results"]]
+    assert {"name": "Ada"} in outputs
 
 
 def test_failed_run_returns_exit_code_one(tmp_path, capsys):
@@ -74,7 +86,9 @@ def test_dotenv_loaded_from_cwd(tmp_path, capsys, monkeypatch):
     (tmp_path / ".env").write_text('MY_TEST_API_KEY="abc-123"\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("MY_TEST_API_KEY", raising=False)
-    main(["--prompt", "hi", "--providers", "mock", "--out", str(tmp_path)])
+    empty_registry = tmp_path / "models.toml"
+    empty_registry.write_text("")
+    main(["--prompt", "hi", "--providers", "openai", "--registry", str(empty_registry), "--out", str(tmp_path)])
     capsys.readouterr()
     import os
 

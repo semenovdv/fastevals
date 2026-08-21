@@ -1,4 +1,4 @@
-"""Command-line interface for fasteval."""
+"""Command-line interface for fastevals."""
 
 import argparse
 import asyncio
@@ -46,15 +46,15 @@ def _parse_providers(raw: str) -> frozenset[str]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="fasteval",
+        prog="fastevals",
         description="Compare one task results across LLM providers and models.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
-  fasteval --prompt \"Summarize this\" --providers \"openai|gemini\" --out runs
-  fasteval --image image.png --prompt \"Find widget bboxes\" \\
+  fastevals --prompt \"Summarize this\" --providers \"openai|gemini\" --out runs
+  fastevals --image image.png --prompt \"Find widget bboxes\" \\
     --structured-output \"x:int(X coord),y:int(Y coord),width:int(Width),height:int(Height)\" \\
     --providers openai
-  fasteval --prompt \"Hello\" --providers mock   # no API key needed
+  fastevals --dataset cases.jsonl --nruns 3 --providers openai --out runs/dataset
 
 """,
     )

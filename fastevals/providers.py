@@ -1,4 +1,4 @@
-"""Provider adapters: one documented contract, mock + LiteLLM implementations."""
+"""Provider adapters: one documented contract over LiteLLM."""
 
 import base64
 import mimetypes
@@ -9,14 +9,13 @@ from typing import Any
 from .config import MAX_ATTACHMENT_BYTES, ModelSpec
 from .exceptions import ConfigError, ProviderError
 from .models import ModelResponse
-from .structured import mocked_answer
 
 __all__ = ["build_messages", "call_model", "parse_response", "scrub_secrets"]
 
 # LiteLLM needs an explicit routing prefix for these providers.
 PROVIDER_PREFIXES = {"openrouter": "openrouter/", "gemini": "gemini/"}
 
-try:  # LiteLLM is optional; mock runs and report work without it.
+try:  # LiteLLM is optional; config parsing and report rendering work without it.
     from litellm import acompletion as _litellm_completion
 except ImportError:  # pragma: no cover - exercised via import guard test
     _litellm_completion = None
@@ -93,13 +92,6 @@ def parse_response(response: Any) -> ModelResponse:
     )
 
 
-def _mock_response(spec: ModelSpec, prompt: str, response_schema: dict[str, Any] | None) -> ModelResponse:
-    if response_schema:
-        return ModelResponse(text=mocked_answer(response_schema))
-    template = spec.response or "[{model}] {prompt}"
-    return ModelResponse(text=template.format(model=spec.model, prompt=prompt))
-
-
 def _build_request(
     spec: ModelSpec,
     prompt: str,
@@ -127,7 +119,7 @@ def _build_request(
             "json_schema": {"name": "response", "schema": response_schema, "strict": True},
         }
     if spec.provider == "openrouter":
-        request.setdefault("extra_headers", {"HTTP-Referer": "https://github.com/semenovdv/fasteval"})
+        request.setdefault("extra_headers", {"HTTP-Referer": "https://github.com/semenovdv/fastevals"})
     return request
 
 
@@ -138,11 +130,9 @@ async def call_model(
     image_path: str | None = None,
     response_schema: dict[str, Any] | None = None,
 ) -> ModelResponse:
-    """Execute one model call. Mock specs never touch the network."""
-    if spec.is_mock:
-        return _mock_response(spec, prompt, response_schema)
+    """Execute one model call through the provider adapter."""
     if _litellm_completion is None:
-        raise ProviderError('LiteLLM is not installed. Install provider support: pip install "fasteval[native]"')
+        raise ProviderError('LiteLLM is not installed. Install provider support: pip install "fastevals[native]"')
     request = _build_request(spec, prompt, file_path, image_path, response_schema)
     response = await _litellm_completion(**request)
     return parse_response(response)

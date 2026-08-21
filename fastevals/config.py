@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 ALL_PROVIDERS = "all"
-SUPPORTED_PROVIDERS = ("openai", "gemini", "openrouter", "mock")
+SUPPORTED_PROVIDERS = ("openai", "gemini", "openrouter")
 DEFAULT_TIMEOUT_S = 120
 DEFAULT_MAX_CONCURRENCY = 4
 DEFAULT_OUT_DIR = "runs"
@@ -38,7 +38,6 @@ _KNOWN_SPEC_KEYS = frozenset(
         "output_cost_usd_per_mtok",
         "reasoning_cost_usd_per_mtok",
         "timeout_s",
-        "response",
     }
 )
 
@@ -98,11 +97,6 @@ class ModelSpec:
     output_cost_usd_per_mtok: float | None = None
     reasoning_cost_usd_per_mtok: float | None = None
     timeout_s: int = DEFAULT_TIMEOUT_S
-    response: str | None = None
-
-    @property
-    def is_mock(self) -> bool:
-        return self.provider == "mock"
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any], spec_id: str) -> "ModelSpec":
@@ -125,7 +119,6 @@ class ModelSpec:
             "cached_write_cost_usd_per_mtok",
             "output_cost_usd_per_mtok",
             "reasoning_cost_usd_per_mtok",
-            "response",
         ):
             if raw.get(key) is not None:
                 fields[key] = raw[key]

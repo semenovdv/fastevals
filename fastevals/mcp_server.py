@@ -1,6 +1,6 @@
-"""MCP server exposing fasteval to AI assistants.
+"""MCP server exposing fastevals to AI assistants.
 
-Run locally with ``fasteval-mcp`` (stdio transport) and register it from any
+Run locally with ``fastevals-mcp`` (stdio transport) and register it from any
 MCP client, e.g. Claude Desktop or Claude Code.
 """
 
@@ -20,9 +20,9 @@ from .structured import shorthand_to_schema
 __all__ = ["build_server", "main"]
 
 mcp = MCPServer(
-    name="fasteval",
+    name="fastevals",
     instructions=(
-        "fasteval runs one prompt across a matrix of LLM models and providers, "
+        "fastevals runs one prompt across a matrix of LLM models and providers, "
         "saves every response and returns a comparison summary with cost, "
         "latency and token metrics."
     ),
@@ -44,7 +44,7 @@ async def run_evaluation(
 
     Args:
         prompt: The task prompt (omit when ``dataset`` supplies prompts).
-        providers: Pipe-separated provider list, e.g. ``openai|mock`` or ``all``.
+        providers: Pipe-separated provider list, e.g. ``openai|openrouter`` or ``all``.
         structured_output: Optional compact schema like ``name:str,age:int``.
         dataset: Optional JSONL/CSV path with cases (prompt, expected, evaluator, pattern).
         file: Optional document attachment (image, PDF or text file).
@@ -92,7 +92,7 @@ async def run_evaluation(
 
 @mcp.tool()
 def list_models(registry: str | None = None) -> dict[str, Any]:
-    """List models available in the fasteval registry.
+    """List models available in the fastevals registry.
 
     Args:
         registry: Optional path to an alternative TOML registry.
@@ -123,7 +123,7 @@ def list_models(registry: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 def get_run(json_path: str) -> dict[str, Any]:
-    """Summarize a saved fasteval run from its ``run.json`` file."""
+    """Summarize a saved fastevals run from its ``run.json`` file."""
     path = Path(json_path)
     if not path.exists():
         return {"ok": False, "error": f"Run file not found: {json_path}"}

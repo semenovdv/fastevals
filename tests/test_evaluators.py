@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from fasteval.dataset import Case, load_dataset
-from fasteval.evaluators import evaluate_output
-from fasteval.exceptions import ConfigError
+from fastevals.dataset import Case, load_dataset
+from fastevals.evaluators import evaluate_output
+from fastevals.exceptions import ConfigError
 
 
 def test_load_jsonl_dataset(tmp_path: Path):
