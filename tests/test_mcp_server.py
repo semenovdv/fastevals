@@ -67,7 +67,7 @@ async def test_run_evaluation_with_model_selectors(tmp_path: Path, fake_llm, api
             "prompt": "hi",
             "providers": "openai",
             "registry": str(openai_registry),
-            "models": "gpt-test@low",
+            "models": "openai/gpt-test@low",
             "out": str(tmp_path),
         },
     )

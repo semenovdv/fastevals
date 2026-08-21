@@ -131,7 +131,7 @@ def test_run_end_to_end_with_model_selector(tmp_path, capsys, offline_openai, fa
             "--providers",
             "openai",
             "--models",
-            "gpt-test@low",
+            "openai/gpt-test@low",
             *offline_openai,
             "--out",
             str(tmp_path),
