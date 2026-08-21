@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .builtin_tags import BUILTIN_TAG_NAMES, builtin_description, builtin_selectors
 from .config import DEFAULT_MAX_CONCURRENCY, SUPPORTED_PROVIDERS, RunConfig
-from .exceptions import ConfigError, FastEvalError
+from .exceptions import FastEvalError
 from .registry import default_registry_path, describe_registry, load_registry, select_specs
 from .report import save_report
 from .runner import run
@@ -177,6 +178,16 @@ def _handle_tag(args: argparse.Namespace) -> int:
 
     if args.tag_command == "list":
         tags = load_tags()
+        builtins: dict[str, Any] = {}
+        try:
+            entries = load_registry(default_registry_path())
+            for name in BUILTIN_TAG_NAMES:
+                builtins[name] = {
+                    "description": builtin_description(name),
+                    "models": builtin_selectors(name, entries),
+                }
+        except FastEvalError:
+            builtins = {}
         _emit(
             {
                 "ok": True,
@@ -185,17 +196,20 @@ def _handle_tag(args: argparse.Namespace) -> int:
                     name: {"description": tag["description"], "models": tag["models"]}
                     for name, tag in sorted(tags.items())
                 },
+                "built_in": builtins,
             }
         )
         return 0
 
     if args.tag_command == "show":
         try:
-            models = resolve_tag(args.name)
+            models = resolve_tag(args.name, entries=load_registry(default_registry_path()))
         except FastEvalError as exc:
             _emit({"ok": False, "name": args.name, "error": str(exc)})
             return 1
-        description = load_tags().get(args.name.strip(), {}).get("description")
+        description = load_tags().get(args.name.strip(), {}).get("description") or builtin_description(
+            args.name.strip().lower()
+        )
         _emit({"ok": True, "name": args.name.strip(), "description": description, "models": models})
         return 0
 
@@ -219,15 +233,11 @@ def main(argv: list[str] | None = None) -> int:
         return _print_models(args.registry)
 
     try:
-        models = args.models
-        if args.tag:
-            if args.models:
-                raise ConfigError("Use --tag or --models, not both")
-            models = frozenset(resolve_tag(args.tag))
         config = RunConfig(
             prompt=args.prompt or "",
             providers=args.providers,
-            models=models,
+            models=args.models,
+            tag=args.tag,
             file=str(args.file) if args.file else None,
             image=str(args.image) if args.image else None,
             structured_output=shorthand_to_schema(args.structured_output) if args.structured_output else None,

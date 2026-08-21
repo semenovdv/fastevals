@@ -55,6 +55,7 @@ class RunConfig:
     structured_output: dict[str, Any] | None = None
     dataset: str | None = None
     nruns: int = 1
+    tag: str | None = None
     registry: str | None = None
     max_concurrency: int = DEFAULT_MAX_CONCURRENCY
     out: str = DEFAULT_OUT_DIR
@@ -66,6 +67,8 @@ class RunConfig:
             raise ConfigError(f"max_concurrency must be >= 1, got {self.max_concurrency}")
         if self.nruns < 1:
             raise ConfigError(f"nruns must be >= 1, got {self.nruns}")
+        if self.tag and self.models:
+            raise ConfigError("Use tag or models, not both")
         for label, path in (("file", self.file), ("image", self.image), ("dataset", self.dataset)):
             if path and not Path(path).exists():
                 raise ConfigError(f"{label} not found: {path}")

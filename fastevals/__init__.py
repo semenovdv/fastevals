@@ -8,6 +8,7 @@ from .models import ModelResponse, RunResult
 from .registry import load_registry
 from .report import save_report
 from .runner import run
+from .tags import load_tags, remove_tag, resolve_tag, save_tag
 
 try:  # Single source of truth is the installed package metadata.
     __version__ = version("fastevals")
@@ -26,6 +27,10 @@ __all__ = [
     "StructuredOutputError",
     "__version__",
     "load_registry",
+    "load_tags",
+    "remove_tag",
+    "resolve_tag",
     "run",
     "save_report",
+    "save_tag",
 ]

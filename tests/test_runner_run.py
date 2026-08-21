@@ -197,3 +197,22 @@ async def test_dataset_with_unknown_evaluator_raises(tmp_path, openai_registry):
                 dataset=str(dataset),
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_builtin_tag_resolves_at_run_time(tmp_path, fake_llm, api_key, openai_registry):
+    calls = fake_llm(text="hi")
+    config = RunConfig(prompt="hi", registry=str(openai_registry), tag="auto-deep")
+    results = await run(config)
+    # registry fixture: single gpt-test with off|low → one deepest cell
+    assert [row.reasoning_effort for row in results] == ["low"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_unknown_tag_in_run_fails_with_guidance(tmp_path, openai_registry, monkeypatch):
+    monkeypatch.setenv("FASTEVAL_TAGS_FILE", str(tmp_path / "tags.toml"))
+    with pytest.raises(ConfigError) as excinfo:
+        await run(RunConfig(prompt="hi", registry=str(openai_registry), tag="nope"))
+    assert "saved:" in str(excinfo.value)
+    assert "built-in: auto-cheap" in str(excinfo.value)

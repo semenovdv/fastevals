@@ -102,7 +102,7 @@ def test_run_with_unknown_tag_fails(tmp_path, capsys, tags_file):
     exit_code = main(["--prompt", "hi", "--tag", "missing", "--out", str(tmp_path)])
     assert exit_code == 1
     payload = _payload(capsys)
-    assert "Available tags" in payload["error"]
+    assert "built-in:" in payload["error"]
     assert payload["error"].startswith("Unknown tag 'missing'")
 
 

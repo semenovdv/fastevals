@@ -100,6 +100,25 @@ a `tag` argument. Typical agent flow:
 Suites store raw selectors, so they keep working as your registry grows;
 invalid selectors cannot be saved in the first place.
 
+### Four built-in suites, always available
+
+No setup at all — these adapt to whatever your registry contains:
+
+| Tag | Expands to |
+|---|---|
+| `auto-fast` | one **fastest** cell per model (lightest effort) |
+| `auto-deep` | one **deepest-reasoning** cell per model |
+| `auto-cheap` | the **cheapest** model at its lightest effort |
+| `auto-flagship` | the **most expensive** model across all efforts |
+
+```bash
+fastevals --tag auto-fast --prompt "..."          # smoke every model cheaply
+fastevals --tag auto-deep --dataset cases.jsonl   # max-reasoning quality pass
+```
+
+Built-ins are a reserved namespace (`tag add auto-fast` is rejected) and
+always reflect the current registry, so they never go stale.
+
 ## Why fastevals
 
 - **Structured output that verifies** — compact schema syntax compiles to JSON Schema, is sent to the provider, and every response is validated locally before it reaches `run.json`.
@@ -236,10 +255,21 @@ cards, per-model aggregates for datasets.
 import asyncio
 from fastevals import RunConfig, run, save_report
 
-config = RunConfig(prompt="Summarize eval best practices", providers=frozenset({"openai"}))
+# a saved tag (see "Tags" above) or explicit selectors — both first-class
+config = RunConfig(prompt="Summarize eval best practices", tag="auto-fast")
 results = asyncio.run(run(config))
 save_report(config, results, "runs")
 print(results[0].output, results[0].latency_ms, results[0].total_cost_usd)
+```
+
+Managing tags programmatically:
+
+```python
+from fastevals import save_tag, load_tags, resolve_tag
+
+save_tag("cheap", ["openai/gpt-5.6-luna@none"], description="Smoke tier")
+print(load_tags())
+print(resolve_tag("auto-deep"))
 ```
 
 ## Architecture
