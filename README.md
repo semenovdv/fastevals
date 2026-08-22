@@ -45,9 +45,15 @@ Exposed tools:
 
 | Tool | Purpose |
 |---|---|
-| `run_evaluation` | Run a prompt or dataset across providers; returns JSON summary + report paths |
+| `run_evaluation` | Run a prompt, dataset file, or **inline cases** across providers; returns JSON summary + report paths. `output_limit` keeps long answers out of agent context |
 | `list_models` | Registry inspector: models, reasoning efforts, pricing |
-| `get_run` | Summarize a saved run: pass rate, errors, total cost |
+| `list_runs` | Recent evaluations, newest first — history across sessions |
+| `get_run` | Deep-dive into one saved run: pass rate, errors, total cost |
+| `add_tag` / `list_tags` / `remove_tag` | Manage saved model suites (see Tags above) |
+
+Everything an agent needs is reachable without a shell: inline `cases`
+replace dataset files for Claude Desktop, `list_runs` restores context in a
+new conversation, and suites persist in `~/.config/fastevals/`.
 
 Example agent prompts that now just work:
 
@@ -55,8 +61,11 @@ Example agent prompts that now just work:
 > against openai/gpt-5.6-sol@low, then run "Summarize this contract in 5
 > bullets" through it — which one is faster and cheaper on this task?
 
-> Evaluate cases.jsonl with my nightly tag, 3 runs per case, and report the
-> pass rate per model.
+> Evaluate these three questions with the auto-fast tag and tell me the pass
+> rate per model: [questions pasted inline — no files needed]
+
+> What did my last five fastevals evaluations cost, and did any of them have
+> failing cases?
 
 > List my registered models, then evaluate cases.jsonl on terra and report
 > the pass rate per effort level.

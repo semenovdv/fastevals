@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from fastevals.mcp_server import build_server
+from fastevals.tags import load_tags
 
 
 def parse(result):
@@ -211,3 +212,135 @@ async def test_tag_and_models_mutually_exclusive_in_mcp(tmp_path: Path):
     payload = parse(result)
     assert payload["ok"] is False
     assert "not both" in payload["error"]
+
+
+@pytest.mark.asyncio
+async def test_inline_cases_without_shell(tmp_path: Path, fake_llm, api_key, openai_registry):
+    """Claude Desktop agents have no shell: inline cases replace dataset files."""
+    calls = fake_llm(text="Париж")
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {
+            "providers": "openai",
+            "registry": str(openai_registry),
+            "cases": [
+                {"id": "cap", "prompt": "Capital of France?", "expected": "Париж", "evaluator": "exact_match"},
+                {"prompt": 'Return JSON {"a": 1}', "evaluator": "json_valid"},
+            ],
+            "out": str(tmp_path),
+        },
+    )
+    payload = parse(result)
+    assert payload["ok"] is True
+    assert len(payload["results"]) == 4  # 2 cases x off|low
+    assert len(calls) == 4
+    saved = json.loads(Path(payload["json_path"]).read_text())
+    assert [case["id"] for case in saved["cases"]] == ["cap", "case-002"]
+
+
+@pytest.mark.asyncio
+async def test_cases_and_dataset_mutually_exclusive(tmp_path: Path):
+    result = await build_server().call_tool(
+        "run_evaluation",
+        {"prompt": "", "dataset": str(tmp_path / "x.jsonl"), "cases": [{"prompt": "hi"}]},
+    )
+    payload = parse(result)
+    assert payload["ok"] is False
+    assert "not both" in payload["error"]
+
+
+@pytest.mark.asyncio
+async def test_output_truncation_keeps_structured_values_native(tmp_path: Path, fake_llm, api_key, openai_registry):
+    long_text = "x" * 2000
+    fake_llm(text=long_text[:1500])
+    server = build_server()
+
+    clipped = parse(
+        await server.call_tool(
+            "run_evaluation",
+            {"prompt": "p", "providers": "openai", "registry": str(openai_registry), "out": str(tmp_path)},
+        )
+    )
+    assert all(row["output_truncated"] for row in clipped["results"])
+    assert all(len(row["output"]) == 400 for row in clipped["results"])
+
+    full = parse(
+        await server.call_tool(
+            "run_evaluation",
+            {
+                "prompt": "p",
+                "providers": "openai",
+                "registry": str(openai_registry),
+                "out": str(tmp_path),
+                "output_limit": 0,
+            },
+        )
+    )
+    assert all(not row["output_truncated"] for row in full["results"])
+    # structured outputs stay native when they fit the limit
+    fake_llm(text=json.dumps({"name": "Ada"}))
+    structured = parse(
+        await server.call_tool(
+            "run_evaluation",
+            {
+                "prompt": "p",
+                "providers": "openai",
+                "registry": str(openai_registry),
+                "structured_output": "name:str",
+                "models": "openai/gpt-test@off",
+                "out": str(tmp_path),
+                "output_limit": 100,
+            },
+        )
+    )
+    assert structured["results"][0]["output"] == {"name": "Ada"}
+    assert not structured["results"][0]["output_truncated"]
+
+
+@pytest.mark.asyncio
+async def test_list_runs_discovers_past_evaluations(tmp_path: Path, fake_llm, api_key, openai_registry):
+    server = build_server()
+    fake_llm(text="hello")
+    first = parse(
+        await server.call_tool(
+            "run_evaluation",
+            {
+                "prompt": "one",
+                "tag": None,
+                "providers": "openai",
+                "registry": str(openai_registry),
+                "out": str(tmp_path),
+            },
+        )
+    )
+    second = parse(
+        await server.call_tool(
+            "run_evaluation",
+            {
+                "prompt": "two",
+                "tag": None,
+                "providers": "openai",
+                "registry": str(openai_registry),
+                "out": str(tmp_path),
+            },
+        )
+    )
+
+    listed = parse(await server.call_tool("list_runs", {"out": str(tmp_path)}))
+    paths = [run["json_path"] for run in listed["runs"]]
+    assert len(paths) == 2
+    assert set(paths) == {first["json_path"], second["json_path"]}
+    newest = listed["runs"][0]
+    assert newest["runs"] == 2 and newest["errors"] == 0
+
+
+@pytest.mark.asyncio
+async def test_remove_tag_tool(tmp_path: Path, monkeypatch):
+    from fastevals.tags import save_tag
+
+    monkeypatch.setenv("FASTEVAL_TAGS_FILE", str(tmp_path / "tags.toml"))
+    save_tag("temp", ["openai/gpt-5.6-luna"])
+    server = build_server()
+    payload = parse(await server.call_tool("remove_tag", {"name": "temp"}))
+    assert payload == {"ok": True, "name": "temp", "removed": True}
+    assert "temp" not in load_tags()

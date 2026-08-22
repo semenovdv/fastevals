@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **MCP agent ergonomics**: `list_runs` (history across sessions, newest
+  first), `remove_tag`, inline `cases` for `run_evaluation` (shell-less
+  clients like Claude Desktop can now evaluate multiple prompts without
+  writing files) and an `output_limit` parameter that truncates long cell
+  outputs in responses while keeping structured values native and full
+  artifacts on disk.
+
 ## [0.1.3] - 2026-08-21
 
 ### Changed
