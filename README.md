@@ -163,6 +163,10 @@ Every run writes a timestamped directory under `--out` containing
 can open or send to anyone). Exit codes: `0` when every model completed,
 `1` otherwise — easy to script.
 
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="fastevals terminal demo" width="820">
+</p>
+
 📖 **Full manual:** [`docs/USAGE.md`](docs/USAGE.md) — every flag, the
 selector grammar, registry format, evaluators, MCP tools and troubleshooting
 in detail.

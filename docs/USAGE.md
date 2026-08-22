@@ -1,7 +1,7 @@
 # fastevals — Detailed Usage Guide
 
 Everything the tool can do, in one place. For a quick overview see the
-[README](../README.md); this document is the full manual.
+[README](https://github.com/semenovdv/fastevals#readme); this document is the full manual.
 
 ---
 
@@ -19,7 +19,7 @@ Everything the tool can do, in one place. For a quick overview see the
 10. [MCP server (agents)](#10-mcp-server-agents)
 11. [Python API](#11-python-api)
 12. [Exit codes and error handling](#12-exit-codes-and-error-handling)
-13. [Configuration files & environment](#13-configuration-files--environment)
+13. [Configuration files & environment](#13-configuration-files-environment)
 14. [Troubleshooting](#14-troubleshooting)
 
 ---

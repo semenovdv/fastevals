@@ -1,7 +1,7 @@
 # Roadmap
 
 fastevals follows a "small core, honest metrics" philosophy. Everything below
-is direction, not promise — see [`CHANGELOG.md`](../CHANGELOG.md) for what
+is direction, not promise — see [`CHANGELOG.md`](https://github.com/semenovdv/fastevals/blob/main/CHANGELOG.md) for what
 has already landed.
 
 ## Done in v0.1
@@ -24,11 +24,10 @@ from a comparison tool into an engineering tool.
 
 ### P1 — Adoption
 
-- **Publish to PyPI** via trusted publishing so `pip install fastevals` works.
-- **Codecov** integration with a live coverage badge.
-- **Demo GIF** in the README (mock provider, zero credits).
-- **Docs site** on GitHub Pages (mkdocs-material) with an API reference and a
-  rendered sample report.
+- ✅ **Published to PyPI** — `pip install fastevals` (trusted publishing).
+- ✅ **Docs site on GitHub Pages** (mkdocs-material) hosting the full usage guide.
+- ✅ **Demo GIF** in the README from real command output.
+- ⬜ Codecov badge — uploads wired in CI, waiting on first tokenless sync.
 
 ### P2 — Engineering tool
 

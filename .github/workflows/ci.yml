@@ -43,6 +43,14 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
+      - name: Upload to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   build:
     name: Build distribution
     runs-on: ubuntu-latest
