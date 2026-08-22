@@ -59,3 +59,34 @@ def test_save_report_writes_json_and_html(tmp_path: Path):
     html = html_path.read_text()
     assert "Run configuration" in html
     assert "mock / mock-model" in html
+
+
+def test_config_section_hides_empty_rows():
+    from fastevals.report import _config_section
+
+    config = RunConfig(prompt="Only a prompt here")
+    section = _config_section(config)
+    assert "Prompt" in section
+    assert "Dataset" not in section
+    assert "Image" not in section
+    assert "Runs per case" not in section
+
+
+def test_dataset_only_run_hides_prompt_row(tmp_path):
+    from fastevals.report import _config_section
+
+    cases = tmp_path / "cases.jsonl"
+    cases.write_text('{"prompt": "hi"}\n')
+    config = RunConfig(prompt="", providers=frozenset({"openai"}), dataset=str(cases))
+    section = _config_section(config)
+    assert "Dataset" in section and "cases.jsonl" in section
+    assert ">Prompt<" not in section
+
+
+def test_nruns_row_appears_only_for_repeated_runs():
+    from fastevals.report import _config_section
+
+    single = _config_section(RunConfig(prompt="p"))
+    repeated = _config_section(RunConfig(prompt="p", nruns=3))
+    assert "Runs per case" not in single
+    assert "3" in repeated

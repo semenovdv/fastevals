@@ -61,9 +61,9 @@ def _output_body(row: RunResult) -> str:
 
 
 def _render_config_items(config: RunConfig) -> str:
-    muted_cell = "<span class='muted'>—</span>"
+    """Render only the configuration rows that actually have a value."""
     items = [
-        ("Prompt", config.prompt or None),
+        ("Prompt", config.prompt.strip() if config.prompt else None),
         ("Dataset", config.dataset),
         ("Runs per case", str(config.nruns) if config.nruns > 1 else None),
         ("File", config.file),
@@ -73,10 +73,11 @@ def _render_config_items(config: RunConfig) -> str:
             json.dumps(config.structured_output, ensure_ascii=False, indent=2) if config.structured_output else None,
         ),
     ]
+    visible = [(label, value) for label, value in items if value]
     return "".join(
         f"<div class='config-item'><span class='config-key'>{_escape(label)}</span>"
-        f"<div class='config-value'>{_escape(str(value)) if value else muted_cell}</div></div>"
-        for label, value in items
+        f"<div class='config-value'>{_escape(str(value))}</div></div>"
+        for label, value in visible
     )
 
 
@@ -347,6 +348,17 @@ def _table_tools_script() -> str:
     """
 
 
+def _config_section(config: RunConfig) -> str:
+    items = _render_config_items(config)
+    if not items:
+        return ""
+    return (
+        "<section class='card' style='margin-bottom:20px'>"
+        "<h2 class='section-title'>Run configuration</h2>"
+        f"<div class='config-grid'>{items}</div></section>"
+    )
+
+
 def render_html_report(config: RunConfig, results: list[RunResult], created_at: str) -> str:
     from . import __version__
 
@@ -615,10 +627,7 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
       {_render_summary_cards(results)}
     </section>
 
-    <section class="card" style="margin-bottom:20px">
-      <h2 class="section-title">Run configuration</h2>
-      <div class="config-grid">{_render_config_items(config)}</div>
-    </section>
+    {_config_section(config)}
 
     <section class="grid charts-grid">
       <div class="card"><h2 class="section-title">Latency</h2><canvas id="latencyChart"></canvas></div>
