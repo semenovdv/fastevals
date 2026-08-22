@@ -89,7 +89,7 @@ jobs:
 
       - name: Consumer typing check (py.typed contract)
         run: |
-          python -m pip install mypy
+          python -m pip install mypy "dist/$(ls dist | grep '\.whl$')"
           mkdir -p /tmp/consumer && cd /tmp/consumer
           cat > app.py <<'PY'
           import asyncio
