@@ -17,6 +17,7 @@ class ModelResponse:
     cached_tokens: int | None = None
     finish_reason: str | None = None
     response_id: str | None = None
+    time_to_first_token_ms: float | None = None
 
 
 @dataclass

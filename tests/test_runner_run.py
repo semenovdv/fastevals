@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from fastevals import providers
 from fastevals.config import RunConfig
 from fastevals.exceptions import ConfigError, FastEvalError
 from fastevals.runner import run_evals
@@ -216,3 +217,58 @@ async def test_unknown_tag_in_run_fails_with_guidance(tmp_path, openai_registry,
         await run_evals(RunConfig(prompt="hi", registry=str(openai_registry), tag="nope"))
     assert "saved:" in str(excinfo.value)
     assert "built-in: auto-cheap" in str(excinfo.value)
+
+
+def _stream_chunks(text="streamed answer", prompt_tokens=100, completion_tokens=30):
+    """Build an async iterator shaped like a litellm streaming response."""
+    from types import SimpleNamespace
+
+    async def _stream(**request):
+        async def gen():
+            for part in (text[:4], text[4:]):
+                if not part:
+                    continue
+                yield SimpleNamespace(
+                    choices=[SimpleNamespace(delta=SimpleNamespace(content=part), finish_reason=None)],
+                    usage=None,
+                    id="chatcmpl-stream",
+                )
+            yield SimpleNamespace(
+                choices=[],
+                usage=SimpleNamespace(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    prompt_tokens_details=SimpleNamespace(cached_tokens=0),
+                    completion_tokens_details=SimpleNamespace(reasoning_tokens=0),
+                ),
+            )
+            yield SimpleNamespace(
+                choices=[SimpleNamespace(delta=SimpleNamespace(content=None), finish_reason="stop")],
+                usage=None,
+                id="chatcmpl-stream",
+            )
+
+        return gen()
+
+    return _stream
+
+
+@pytest.mark.asyncio
+async def test_streaming_measures_ttft_and_usage(tmp_path, monkeypatch, api_key, openai_registry):
+    monkeypatch.setattr(providers, "_litellm_completion", _stream_chunks())
+    results = await run_evals(RunConfig(prompt="hi", providers=frozenset({"openai"}), registry=str(openai_registry)))
+    row = results[0]
+    assert row.output == "streamed answer"
+    assert row.time_to_first_token_ms is not None
+    assert 0 < row.time_to_first_token_ms <= (row.latency_ms or 0)
+    assert row.input_tokens == 100 and row.output_tokens == 30
+
+
+@pytest.mark.asyncio
+async def test_non_stream_response_falls_back_to_plain_parse(tmp_path, fake_llm, api_key, openai_registry):
+    calls = fake_llm(text="plain")
+    results = await run_evals(RunConfig(prompt="hi", providers=frozenset({"openai"}), registry=str(openai_registry)))
+    assert all(row.output == "plain" for row in results)
+    # fallback path: TTFT honestly unknown without stream chunks
+    assert all(row.time_to_first_token_ms is None for row in results)
+    assert len(calls) == 2
