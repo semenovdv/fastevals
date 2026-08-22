@@ -55,11 +55,61 @@ jobs:
 
       - name: Build sdist and wheel
         run: |
-          python -m pip install build
+          python -m pip install build twine
           python -m build
+
+      - name: Package integrity checks
+        run: |
+          twine check dist/*
+          python - <<'PY'
+          import glob
+          import zipfile
+
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          required = ["fastevals/data/models.toml", "fastevals/py.typed"]
+          missing = [n for n in required if not any(x.endswith(n) for x in names)]
+          assert not missing, f"missing from wheel: {missing}"
+          assert not any("/tests/" in x for x in names), "tests leaked into wheel"
+          assert not any(x.endswith("/.env") for x in names), ".env leaked into wheel"
+          print(f"wheel contents OK ({len(names)} files)")
+          PY
 
       - name: Smoke test wheel in clean venv
         run: |
           python -m venv /tmp/fastevals-smoke
           /tmp/fastevals-smoke/bin/pip install dist/*.whl
-          /tmp/fastevals-smoke/bin/fastevals --help
+          /tmp/fastevals-smoke/bin/fastevals --version
+          /tmp/fastevals-smoke/bin/fastevals --list-models
+
+      - name: Smoke test sdist in clean venv
+        run: |
+          python -m venv /tmp/fastevals-sdist
+          /tmp/fastevals-sdist/bin/pip install dist/*.tar.gz
+          /tmp/fastevals-sdist/bin/python -c "import fastevals; print('sdist import:', fastevals.__version__)"
+
+      - name: Consumer typing check (py.typed contract)
+        run: |
+          python -m pip install mypy "dist/$(ls dist | grep '\.whl$')"
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          cat > app.py <<'PY'
+          import asyncio
+
+          from fastevals import RunConfig, resolve_tag, run_evals, save_report
+
+
+          async def main() -> None:
+              config = RunConfig(prompt="hi", tag="auto-fast")
+              results = await run_evals(config)
+              save_report(config, results, "runs")
+              selectors: list[str] = resolve_tag("auto-fast")
+              print(len(results), len(selectors))
+
+
+          if __name__ == "__main__":
+              asyncio.run(main())
+          PY
+          cat > pyproject.toml <<'PY'
+          [tool.mypy]
+          strict = true
+          PY
+          mypy --strict app.py
