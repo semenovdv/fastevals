@@ -26,3 +26,5 @@ runs/
 .DS_Store
 .idea/
 .vscode/
+# mkdocs build artifacts
+docs/changelog.md

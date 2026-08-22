@@ -1,0 +1,31 @@
+site_name: fastevals
+site_description: Evaluation tooling your AI agents can drive — provider-agnostic LLM eval runner with an MCP server.
+repo_url: https://github.com/semenovdv/fastevals
+repo_name: semenovdv/fastevals
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Usage guide: USAGE.md
+  - Roadmap: ROADMAP.md
+  - Changelog: changelog.md
+  - QA checklist: QA_CHECKLIST.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - tables
+  - attr_list
