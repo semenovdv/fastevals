@@ -26,6 +26,8 @@ def default_registry_path() -> Path:
 def load_registry(path: str | Path) -> dict[str, dict[str, Any]]:
     """Load the flat TOML registry keyed by ``provider:model``."""
     path = Path(path)
+    if not path.exists():
+        raise ConfigError(f"Model registry not found: {path}")
     with path.open("rb") as config_file:
         data = tomllib.load(config_file)
     if not data:

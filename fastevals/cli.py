@@ -21,7 +21,17 @@ ALL_PROVIDERS = "all"
 
 
 def _dotenv_candidates() -> list[Path]:
-    return [Path.cwd() / ".env", Path(__file__).resolve().parents[1] / ".env"]
+    """Lookup order: project .env, global agent store, repo checkout fallback.
+
+    The global ``~/.config/fastevals/.env`` exists so MCP servers spawned by
+    Claude Desktop (cwd=/, minimal environment) still find API keys without
+    per-project setup.
+    """
+    return [
+        Path.cwd() / ".env",
+        Path.home() / ".config" / "fastevals" / ".env",
+        Path(__file__).resolve().parents[1] / ".env",
+    ]
 
 
 def _load_dotenv() -> None:

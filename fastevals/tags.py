@@ -115,7 +115,11 @@ def resolve_tag(
     if key in tags:
         selectors: list[str] = tags[key]["models"]
         return selectors
-    builtin = builtin_selectors(key, entries or {})
+    if entries is None:
+        from .registry import default_registry_path, load_registry
+
+        entries = load_registry(default_registry_path())
+    builtin = builtin_selectors(key, entries)
     if builtin is not None:
         return builtin
     user_available = ", ".join(sorted(tags)) or "none saved yet"
