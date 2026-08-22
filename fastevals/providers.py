@@ -4,6 +4,7 @@ import asyncio
 import base64
 import mimetypes
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +118,8 @@ def _build_request(
         "messages": build_messages(prompt, file_paths or None),
         "api_key": api_key,
         "timeout": spec.timeout_s,
+        "stream": True,
+        "stream_options": {"include_usage": True},
     }
     if spec.reasoning_effort and spec.reasoning_effort not in ("off", "none"):
         request["reasoning_effort"] = spec.reasoning_effort
@@ -154,4 +157,60 @@ async def call_model(
             if attempt == attempts - 1:
                 raise
             await _sleep(RETRY_BASE_DELAY_S * (2**attempt))
-    return parse_response(response)
+    return await _finalize_response(response)
+
+
+async def _finalize_response(response: Any) -> ModelResponse:
+    """Prefer streamed chunks (gives a real TTFT), fall back to plain parsing.
+
+    Providers and stubs that do not stream surface as iteration errors on
+    the returned object; the non-streaming parse then applies unchanged.
+    """
+    try:
+        return await _consume_stream(response)
+    except (TypeError, AttributeError):
+        return parse_response(response)
+
+
+async def _consume_stream(stream: Any) -> ModelResponse:
+    started = time.perf_counter()
+    ttft_ms: float | None = None
+    parts: list[str] = []
+    usage: Any = None
+    finish_reason: str | None = None
+    response_id: str | None = None
+
+    async for chunk in stream:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            usage = getattr(chunk, "usage", None) or usage
+            continue
+        first = choices[0]
+        delta_content = getattr(getattr(first, "delta", None), "content", None) or getattr(first, "text", None)
+        if delta_content:
+            if ttft_ms is None:
+                ttft_ms = (time.perf_counter() - started) * 1000
+            parts.append(delta_content)
+        if getattr(first, "finish_reason", None):
+            finish_reason = first.finish_reason
+        if getattr(chunk, "usage", None):
+            usage = chunk.usage
+        response_id = getattr(chunk, "id", None) or response_id
+
+    if not parts and usage is None and finish_reason is None:
+        # Nothing stream-shaped arrived; let the caller fall back.
+        raise TypeError("response is not a completion stream")
+
+    text = "".join(parts)
+    cached = getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", 0) or 0
+    reasoning = getattr(getattr(usage, "completion_tokens_details", None), "reasoning_tokens", 0) or 0
+    return ModelResponse(
+        text=text,
+        input_tokens=max(0, (getattr(usage, "prompt_tokens", 0) or 0) - cached),
+        output_tokens=max(0, (getattr(usage, "completion_tokens", 0) or 0) - reasoning),
+        cached_tokens=cached,
+        reasoning_tokens=reasoning,
+        finish_reason=finish_reason or "completed",
+        response_id=response_id or "",
+        time_to_first_token_ms=ttft_ms,
+    )

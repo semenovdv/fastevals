@@ -87,7 +87,7 @@ async def run_evals(config: RunConfig) -> list[RunResult]:
                 response_id=response.response_id or "",
                 error="",
                 latency_ms=latency_ms,
-                time_to_first_token_ms=None,
+                time_to_first_token_ms=response.time_to_first_token_ms,
                 tokens_per_second=tokens_per_second,
             )
         except Exception as exc:  # Keep the matrix report useful when one provider fails.

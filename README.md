@@ -131,7 +131,7 @@ always reflect the current registry, so they never go stale.
 ## Why fastevals
 
 - **Structured output that verifies** — compact schema syntax compiles to JSON Schema, is sent to the provider, and every response is validated locally before it reaches `run.json`.
-- **Honest metrics** — disjoint token buckets (input / output / reasoning / cached), per-bucket pricing from your registry, no fake TTFT without streaming.
+- **Honest metrics** — disjoint token buckets (input / output / reasoning / cached), per-bucket pricing from your registry, real time-to-first-token via streamed completions.
 - **Real evaluation loop** — JSONL/CSV datasets, deterministic evaluators (`exact_match`, `contains`, `json_valid`, `regex`), repeated runs for stability.
 - **Boring engineering** — strict typing, ~90% branch coverage, ruff + mypy + coverage gates in CI, single-file reports with zero telemetry.
 
@@ -317,7 +317,7 @@ stub at the LiteLLM boundary; live API calls never run in CI.
 
 ## Limitations (by design)
 
-- No streaming yet — TTFT is reported as unavailable rather than faked; latency and throughput are end-to-end.
+- Streaming-dependent providers only: TTFT is measured from streamed completions; a provider that cannot stream reports it honestly as unavailable.
 - One prompt template per case; no few-shot templating or conversation history.
 - Evaluators are deterministic heuristics; LLM-as-judge scoring is not included.
 - Pricing comes from your registry, not a live price feed — keep it current.

@@ -266,6 +266,7 @@ def _chart_payload(results: list[RunResult]) -> dict[str, Any]:
     return {
         "labels": labels,
         "latency_ms": [row.latency_ms or 0 for row in results],
+        "ttft_ms": [row.time_to_first_token_ms or 0 for row in results],
         "tokens_per_second": [row.tokens_per_second or 0 for row in results],
         "input_tokens": [row.input_tokens or 0 for row in results],
         "output_tokens": [row.output_tokens or 0 for row in results],
@@ -621,6 +622,7 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
 
     <section class="grid charts-grid">
       <div class="card"><h2 class="section-title">Latency</h2><canvas id="latencyChart"></canvas></div>
+      <div class="card"><h2 class="section-title">Time to first token</h2><canvas id="ttftChart"></canvas></div>
       <div class="card"><h2 class="section-title">Throughput</h2><canvas id="throughputChart"></canvas></div>
       <div class="card"><h2 class="section-title">Token usage</h2><canvas id="tokensChart"></canvas></div>
       <div class="card"><h2 class="section-title">Cost breakdown</h2><canvas id="costChart"></canvas></div>
@@ -654,6 +656,25 @@ def render_html_report(config: RunConfig, results: list[RunResult], created_at: 
           label: "Latency (ms)",
           data: chartData.latency_ms,
           backgroundColor: statusColors,
+          borderRadius: 8,
+        }}],
+      }},
+      options: {{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {{ legend: {{ display: false }} }},
+        scales: {{ y: {{ beginAtZero: true, title: {{ display: true, text: "ms" }} }} }},
+      }},
+    }});
+
+    new Chart(document.getElementById("ttftChart"), {{
+      type: "bar",
+      data: {{
+        labels: chartData.labels,
+        datasets: [{{
+          label: "TTFT (ms)",
+          data: chartData.ttft_ms,
+          backgroundColor: "#7c3aed",
           borderRadius: 8,
         }}],
       }},

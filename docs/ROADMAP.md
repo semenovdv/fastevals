@@ -44,8 +44,9 @@ from a comparison tool into an engineering tool.
 
 ### P3 — Metrics and scenarios
 
-- **Streaming completions** for real time-to-first-token and incremental
-  throughput curves.
+- ~~Streaming completions~~ — shipped: TTFT is measured on streamed
+  completions with automatic non-streaming fallback.
+- **Incremental throughput curves** per run (streaming groundwork done).
 - **Local models** via ollama/vLLM for free, private experimentation.
 - **System prompts and multi-turn cases** — real applications are dialogs.
 - **Prompt templating** with dataset variables for few-shot cases.
