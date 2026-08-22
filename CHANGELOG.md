@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.4] - 2026-08-22
 
 ### Added
 
@@ -14,6 +14,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   writing files) and an `output_limit` parameter that truncates long cell
   outputs in responses while keeping structured values native and full
   artifacts on disk.
+- Scenario-audit hardening: real MCP stdio handshake test, README python
+  examples executed verbatim in the suite, package-integrity gates in CI
+  (`twine check`, wheel contents assertions, sdist smoke, consumer
+  `mypy --strict`).
+
+### Fixed
+
+- `--list-models --registry MISSING` crashed with a raw traceback; every
+  surface now returns a structured JSON error.
+- MCP servers spawned by Claude Desktop could not see project `.env`
+  files; a global agent store `~/.config/fastevals/.env` is loaded after
+  the project one (environment variables keep priority).
+- `resolve_tag("auto-deep")` from Python without explicit registry entries
+  raised instead of resolving against the default registry.
 
 ## [0.1.3] - 2026-08-21
 
