@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] - 2026-08-22
+
+### Added
+
+- **Real time-to-first-token**: model calls now stream by default (with
+  `stream_options.include_usage`), so reports show genuine TTFT per cell;
+  providers or stubs that cannot stream fall back to plain parsing with
+  TTFT reported honestly as unavailable. New dashboard chart visualizes
+  TTFT next to latency.
+
 ## [0.1.4] - 2026-08-22
 
 ### Added
